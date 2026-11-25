@@ -9,12 +9,17 @@ import org.springframework.stereotype.Repository;
 
 /** Persistence for llm_usage: one row per agent run. */
 @Repository
-class UsageRepository {
+class UsageRepository implements UsageRecorder {
 
   private final JdbcClient jdbc;
 
   UsageRepository(JdbcClient jdbc) {
     this.jdbc = jdbc;
+  }
+
+  @Override
+  public void record(UsageEntry e) {
+    save(e.ts(), e.agent(), e.tier(), e.model(), e.usage(), e.costUsd(), e.runId());
   }
 
   void save(
