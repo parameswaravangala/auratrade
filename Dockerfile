@@ -11,7 +11,7 @@ RUN ./mvnw -B -q -DskipTests package
 
 # ---- runtime stage ----
 # TODO (hardening): pin base images by digest once the pipeline is stable.
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 RUN groupadd --system aura && useradd --system --gid aura --no-create-home aura
 WORKDIR /app
 COPY --from=build /workspace/target/auratrade-*.jar app.jar
