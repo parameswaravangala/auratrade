@@ -38,7 +38,7 @@ auratrade:
           outputPerMTok: 0.50
           # Cache prices: check the pricing page and fill in. Until then the input price is used.
       LOCAL:
-        model: ${OLLAMA_MODEL:llama3.1:8b}
+        model: ${OLLAMA_MODEL:llama3.2:3b}
         price:
           inputPerMTok: 0
           outputPerMTok: 0
