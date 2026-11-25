@@ -20,7 +20,7 @@
 
   <properties>
     <java.version>25</java.version>
-    <archunit.version>1.4.1</archunit.version>
+    <archunit.version>1.5.1</archunit.version>
     <jacoco.version>0.8.14</jacoco.version>
     <!-- Raise to 0.80 as real code lands (see docs/adr and the development plan quality gates). -->
     <jacoco.minimum.coverage>0.00</jacoco.minimum.coverage>
