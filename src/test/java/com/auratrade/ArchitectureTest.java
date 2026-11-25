@@ -9,9 +9,8 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition;
 
 /**
- * Module boundaries as executable tests. Extend this as modules gain code (see the allowed
- * dependency table in the architecture docs): for example, only llmgateway may call LLM providers,
- * and agents must not depend on paperbroker.
+ * Module boundaries as executable tests. Extend as modules gain code: for example, agents must not
+ * depend on paperbroker.
  */
 @AnalyzeClasses(packages = "com.auratrade", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
@@ -44,5 +43,15 @@ class ArchitectureTest {
               "com.auratrade.paperbroker..",
               "com.auratrade.journal..",
               "com.auratrade.api..")
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule onlyTheGatewayTouchesSpringAi =
+      noClasses()
+          .that()
+          .resideOutsideOfPackage("com.auratrade.llmgateway..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("org.springframework.ai..")
           .allowEmptyShould(true);
 }

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
  * IST. Throws BudgetExceededException when the agent must not run.
  */
 @Service
-public class BudgetService {
+public class BudgetService implements TierResolver {
 
   private final BudgetResolver resolver;
   private final UsageRepository usage;
@@ -27,6 +27,7 @@ public class BudgetService {
     this.clock = clock;
   }
 
+  @Override
   public Tier resolveTier(AgentType agent) {
     ZonedDateTime now = ZonedDateTime.now(clock.withZone(MarketZones.IST));
     ZonedDateTime dayStart = now.truncatedTo(ChronoUnit.DAYS);

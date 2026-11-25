@@ -23,20 +23,21 @@ management:
 auratrade:
   llm:
     monthly-budget-usd: 50
+    # Local-first: every tier runs on one Ollama model. HEAVY and LIGHT carry pretend Claude prices
+    # so budget and fallback logic behave as they will in production. LOCAL is free.
     tiers:
       HEAVY:
-        model: claude-sonnet-5-5
+        model: ${OLLAMA_MODEL:llama3.2:3b}
         price:
           inputPerMTok: 2.00
           outputPerMTok: 10.00
           cacheReadPerMTok: 0.10
-          cacheWritePerMTok: 2.50 # 5-minute cache write
+          cacheWritePerMTok: 2.50
       LIGHT:
-        model: claude-haiku-5-5
+        model: ${OLLAMA_MODEL:llama3.2:3b}
         price:
           inputPerMTok: 0.10
           outputPerMTok: 0.50
-          # Cache prices: check the pricing page and fill in. Until then the input price is used.
       LOCAL:
         model: ${OLLAMA_MODEL:llama3.2:3b}
         price:
