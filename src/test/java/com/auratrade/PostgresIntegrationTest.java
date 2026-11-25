@@ -6,7 +6,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /** Shared real Postgres (with pgvector) for integration tests. Started once per JVM. */
-abstract class PostgresIntegrationTest {
+public abstract class PostgresIntegrationTest {
 
   static final PostgreSQLContainer POSTGRES =
       new PostgreSQLContainer(

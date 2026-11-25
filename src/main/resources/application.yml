@@ -19,3 +19,39 @@ management:
       probes:
         enabled: true
       show-details: never
+
+auratrade:
+  llm:
+    monthly-budget-usd: 50
+    tiers:
+      HEAVY:
+        model: claude-sonnet-5-5
+        price:
+          inputPerMTok: 2.00
+          outputPerMTok: 10.00
+          cacheReadPerMTok: 0.10
+          cacheWritePerMTok: 2.50 # 5-minute cache write
+      LIGHT:
+        model: claude-haiku-5-5
+        price:
+          inputPerMTok: 0.10
+          outputPerMTok: 0.50
+          # Cache prices: check the pricing page and fill in. Until then the input price is used.
+      LOCAL:
+        model: ${OLLAMA_MODEL:llama3.2:3b}
+        price:
+          inputPerMTok: 0
+          outputPerMTok: 0
+    # No agent floors at LOCAL by default: a small VPS cannot host a useful model.
+    # Opt in per agent (floor: LOCAL) only where an Ollama endpoint is reachable.
+    agents:
+      NEWS_TRIAGE:
+        { preferred: LIGHT, floor: LIGHT, critical: false, dailyTokenCap: 1000000 }
+      STOCK_ANALYSIS:
+        { preferred: HEAVY, floor: LIGHT, critical: false, dailyTokenCap: 600000 }
+      RISK_REVIEW:
+        { preferred: HEAVY, floor: HEAVY, critical: true, dailyTokenCap: 200000 }
+      DAILY_REPORT:
+        { preferred: LIGHT, floor: LIGHT, critical: false, dailyTokenCap: 100000 }
+      ADHOC_CHAT:
+        { preferred: HEAVY, floor: LIGHT, critical: false, dailyTokenCap: 300000 }
