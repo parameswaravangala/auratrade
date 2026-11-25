@@ -1,0 +1,11 @@
+# Production (paper environment on the VPS). Everything comes from the environment; no defaults.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+
+logging:
+  structured:
+    format:
+      console: ecs # structured JSON logs

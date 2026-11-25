@@ -1,0 +1,30 @@
+# Local development stack. Integration tests use Testcontainers and do not need this.
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: auratrade
+      POSTGRES_USER: aura
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-aura_dev}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aura -d auratrade"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Optional local LLM for dev: docker compose --profile local-llm up -d
+  ollama:
+    image: ollama/ollama
+    profiles: ["local-llm"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  pgdata: {}
+  ollama: {}
