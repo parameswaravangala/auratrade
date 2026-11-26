@@ -174,4 +174,33 @@ class UpstoxCandleProviderTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("2022-01-01");
   }
+
+  @Test
+  void oldDailyBarsStampedAtTheOpenAreRestampedToIstMidnight() {
+    // Upstox stamps daily bars up to 2018-11-30 with 09:15 IST (seen live on 2026-11-26).
+    server
+        .expect(requestTo(url("days", 1, "2018-01-02", "2018-01-01")))
+        .andRespond(
+            withSuccess(
+                """
+                {"status":"success","data":{"candles":[
+                  ["2018-01-02T09:15:00+05:30",10.5,11.2,10.1,11.0,500,0],
+                  ["2018-01-01T09:15:00+05:30",10.0,10.6,9.9,10.5,400,0]]}}
+                """,
+                MediaType.APPLICATION_JSON));
+
+    var candles =
+        provider.candles(
+            KEY, Interval.DAY, LocalDate.parse("2018-01-01"), LocalDate.parse("2018-01-02"));
+
+    assertThat(candles)
+        .extracting(Candle::ts)
+        .containsExactly(
+            LocalDate.parse("2018-01-01")
+                .atStartOfDay(com.auratrade.platform.time.MarketZones.IST)
+                .toInstant(),
+            LocalDate.parse("2018-01-02")
+                .atStartOfDay(com.auratrade.platform.time.MarketZones.IST)
+                .toInstant());
+  }
 }

@@ -80,8 +80,13 @@ public class CandleIngestionService {
   public Result ingest(
       CandleRepository.Target target, Interval interval, LocalDate from, LocalDate to) {
     String tradingSymbol = target.tradingSymbol();
-    List<Candle> fetched = provider.candles(target.providerKey(), interval, from, to);
-    QualityReport report = validator.validate(interval, fetched);
+    List<Candle> raw = provider.candles(target.providerKey(), interval, from, to);
+    CandleValidator.Cleaned cleaned = validator.dropPlaceholderBars(interval, raw);
+    List<Candle> fetched = cleaned.kept();
+    QualityReport validated = validator.validate(interval, fetched);
+    List<QualityIssue> all = new java.util.ArrayList<>(cleaned.dropped());
+    all.addAll(validated.issues());
+    QualityReport report = new QualityReport(all);
     int stored = 0;
     if (report.hasErrors()) {
       log.warn(
