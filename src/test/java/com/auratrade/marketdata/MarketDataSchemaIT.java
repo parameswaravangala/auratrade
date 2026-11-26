@@ -29,7 +29,7 @@ class MarketDataSchemaIT extends PostgresIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    jdbc.sql("truncate candle, instrument restart identity").update();
+    jdbc.sql("truncate candle, instrument_alias, instrument restart identity").update();
     instrumentId = insertInstrument("TESTCO");
   }
 

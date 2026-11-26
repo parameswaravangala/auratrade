@@ -30,7 +30,7 @@ class InstrumentLoaderIT extends PostgresIntegrationTest {
 
   @BeforeEach
   void clean() {
-    jdbc.sql("truncate candle, instrument restart identity").update();
+    jdbc.sql("truncate candle, instrument_alias, instrument restart identity").update();
   }
 
   /** A loader that reads {@code csv} at noon UTC on {@code date} (17:30 IST, the same date). */

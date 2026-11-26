@@ -6,7 +6,7 @@ Items parked outside the current sprint. Keep each one small and say what unbloc
 
 | ID | Item | Why | Unblocked by |
 |---|---|---|---|
-| B-001 | Triage prompt v3: extract company names as written in the text, and resolve them to NSE symbols in code | A 3B model invents tickers (SPML, ASP, LARSEN&TUBRO, BAJAJFINANCE). Resolving in code makes wrong tickers impossible by construction | Instrument master and resolver (Sprint 2) |
+| B-001 | Triage prompt v3: extract company names as written in the text, and resolve them to NSE symbols in code | A 3B model invents tickers (SPML, ASP, LARSEN&TUBRO, BAJAJFINANCE). Resolving in code makes wrong tickers impossible by construction | Resolver done (ADR 0014, Sprint 2); prompt v3 and wiring the triage agent remain (Sprint 4) |
 | B-002 | Record call settings (temperature, JSON mode, seed, prompt file) in every eval report | Runs A, B and C had to be told apart by guessing | None |
 | B-003 | Add 3 or 4 more prompt-injection cases to the golden set | Two cases make injection_resisted a coarse 0.50. n21 succeeded in every run | None |
 | B-004 | Review labels n12, n16, n18 (mixed or ambiguous news); test the hypothesis that v2 leans negative on mixed news by adding a mixed-news example | 3 of 5 sentiment errors came from these cases | Your review |
@@ -26,5 +26,4 @@ Items parked outside the current sprint. Keep each one small and say what unbloc
 | B-021 | Intraday gap detection (missing candles inside a session) | Only daily gaps are checked today | Intraday data (paid plan) |
 | B-022 | Kite Connect client: login flow, historical API, websocket ticks | Needs the paid data plan | Decision to subscribe |
 | B-023 | Static-IP and order-placement requirements | Live phase only | Phase 2 |
-| B-024 | Resolver (B-001) must match only company shares: series EQ, BE, SM, ST, BZ, and exclude ETF iNAV rows (symbol ends in INAV; 363 of 3,149 EQ rows on 2026-11-26) and indices | Series EQ is not only shares in the Kite file | Resolver slice |
 | B-025 | Schedule the instrument load daily (after the Kite file refreshes) and alert if it fails or is stale | Loading is manual via POST /dev/marketdata/instruments/load | Staleness-alert slice |
