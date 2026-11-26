@@ -95,7 +95,27 @@ final class UpstoxCandleProvider implements MarketDataProvider {
       out.addAll(fetch(providerKey, unit, start, end));
       start = end.plusDays(1);
     }
-    return out;
+    return interval == Interval.DAY ? atIstMidnight(out) : out;
+  }
+
+  /**
+   * Upstox stamps daily bars up to 2018-11-30 with the session open (09:15 IST) and from 2018-12-03
+   * with midnight (checked 2026-11-26). The date part is the IST trading date in both cases, so
+   * daily bars are restamped to IST midnight of that date, our convention for DAY.
+   */
+  static List<Candle> atIstMidnight(List<Candle> candles) {
+    return candles.stream()
+        .map(c ->
+            new Candle(
+                c.tradingDate()
+                    .atStartOfDay(com.auratrade.platform.time.MarketZones.IST)
+                    .toInstant(),
+                c.open(),
+                c.high(),
+                c.low(),
+                c.close(),
+                c.volume()))
+        .toList();
   }
 
   private List<Candle> fetch(String key, Unit unit, LocalDate from, LocalDate to) {
