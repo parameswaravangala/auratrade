@@ -43,13 +43,37 @@ class MarketDataJobsConfig {
       @Value("${auratrade.jobs.eod-candles.series:EQ}") List<String> series,
       @Value("${auratrade.jobs.eod-candles.max-instruments:0}") int maxInstruments,
       @Value("${auratrade.jobs.eod-candles.min-coverage:0.9}") double minCoverage,
-      @Value("${auratrade.jobs.eod-candles.benchmarks:NIFTY}") List<String> benchmarks) {
+      @Value("${auratrade.jobs.eod-candles.benchmarks:NIFTY}") List<String> benchmarks,
+      @Value("${auratrade.jobs.eod-candles.correct-previous-session:true}") boolean correct,
+      BackfillService backfills) {
     return new EodCandleJob(
         ingestion,
         calendar,
         clock,
         new EodCandleJob.Settings(
-            cutoff, maxCatchUp, series, maxInstruments, minCoverage, benchmarks));
+            cutoff, maxCatchUp, series, maxInstruments, minCoverage, benchmarks),
+        correct ? backfillCorrections(backfills, series) : session -> "no correction (disabled)");
+  }
+
+  /**
+   * Re-reads a session from history with a one-day backfill (ADR 0025), replacing the provisional
+   * quote bars. Only one backfill runs at a time, so an open request means no correction this time;
+   * the next evening's correction does not cover the missed session (noted in the run detail).
+   */
+  static EodCandleJob.Corrections backfillCorrections(
+      BackfillService backfills, List<String> series) {
+    return session -> {
+      try {
+        return "correction backfill #"
+            + backfills.create(session, session, series).id()
+            + " for "
+            + session;
+      } catch (IllegalArgumentException e) {
+        LoggerFactory.getLogger(EodCandleJob.class)
+            .warn("No history correction for {}: {}", session, e.getMessage());
+        return "no correction for " + session + ": " + e.getMessage();
+      }
+    };
   }
 
   @Bean

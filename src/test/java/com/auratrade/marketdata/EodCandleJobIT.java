@@ -64,6 +64,153 @@ class EodCandleJobIT extends PostgresIntegrationTest {
 
   private final ScriptedProvider provider = new ScriptedProvider();
 
+  /**
+   * Adds quote snapshots, three keys per call. Script per key: "ok" (a bar for {@code session}),
+   * "none" (left out), "old" (a bar for the session before), "bad" (fails validation).
+   */
+  static final class SnapshotProvider implements MarketDataProvider, SessionBarProvider {
+    final ScriptedProvider history = new ScriptedProvider();
+    final java.util.Map<String, String> snapshot = new java.util.HashMap<>();
+    final List<List<String>> snapshotCalls = new java.util.ArrayList<>();
+    final List<String> historyCalls = new java.util.ArrayList<>();
+    LocalDate session;
+    LocalDate before;
+    LocalDate after;
+
+    @Override
+    public String name() {
+      return "FAKE";
+    }
+
+    @Override
+    public Set<Interval> supportedIntervals() {
+      return EnumSet.of(Interval.DAY);
+    }
+
+    @Override
+    public List<Candle> candles(String key, Interval interval, LocalDate from, LocalDate to) {
+      historyCalls.add(key + " " + from + ".." + to);
+      return history.candles(key, interval, from, to);
+    }
+
+    @Override
+    public int maxKeysPerCall() {
+      return 3;
+    }
+
+    @Override
+    public java.util.Map<String, Candle> latestSessionBars(List<String> keys) {
+      snapshotCalls.add(List.copyOf(keys));
+      java.util.Map<String, Candle> out = new java.util.HashMap<>();
+      BigDecimal p = new BigDecimal("100");
+      for (String k : keys) {
+        switch (snapshot.getOrDefault(k, "ok")) {
+          case "none" -> {}
+          case "old" -> out.put(k, Candle.daily(before, p, p, p, p, 10));
+          case "next" -> out.put(k, Candle.daily(after, p, p, p, p, 10));
+          case "bad" ->
+              out.put(
+                  k, Candle.daily(session, p, new BigDecimal("90"), new BigDecimal("99"), p, 10));
+          default ->
+              out.put(
+                  k, Candle.daily(session, p, new BigDecimal("101"), new BigDecimal("99"), p, 10));
+        }
+      }
+      return out;
+    }
+  }
+
+  private SnapshotProvider snapshots(LocalDate session) {
+    var s = new SnapshotProvider();
+    s.session = session;
+    s.before = calendar.previousTradingDay(session);
+    s.after = calendar.nextTradingDay(session);
+    return s;
+  }
+
+  @Test
+  void withSnapshotsTheLastSessionTakesAFewCallsAndThePreviousIsCorrectedLater() {
+    addNiftyIndex();
+    var s = snapshots(FRIDAY.to());
+
+    var outcome = job(s, 0.9, List.of("NIFTY")).execute(FRIDAY);
+
+    assertThat(s.historyCalls).isEmpty();
+    assertThat(s.snapshotCalls).hasSize(3); // NIFTY, then 4 shares in calls of 3 and 1
+    assertThat(stored()).isEqualTo(5);
+    assertThat(outcome.ok()).isEqualTo(4);
+    assertThat(outcome.detail()).contains("4 with a candle for 2026-01-23 (quotes)");
+    assertThat(corrected).containsExactly(calendar.previousTradingDay(FRIDAY.to()));
+  }
+
+  @Test
+  void aSnapshotBarForAnotherSessionIsNotStored() {
+    var s = snapshots(FRIDAY.to());
+    s.snapshot.put("K1", "old"); // did not trade on Friday
+    s.snapshot.put("K2", "none");
+    s.snapshot.put("K3", "bad");
+
+    var outcome = job(s, 0.25, List.of()).execute(FRIDAY);
+
+    assertThat(stored()).isEqualTo(1);
+    assertThat(outcome.failed()).isEqualTo(1);
+    assertThat(outcome.detail()).contains("SHARE3 (validation)");
+  }
+
+  @Test
+  void aCatchUpTakesEarlierDaysFromHistoryAndTheLastFromSnapshots() {
+    LocalDate thursday = calendar.previousTradingDay(FRIDAY.to());
+    var s = snapshots(FRIDAY.to());
+
+    job(s, 0.9, List.of()).execute(new JobWindow(thursday, FRIDAY.to()));
+
+    assertThat(s.historyCalls)
+        .hasSize(4)
+        .allMatch(c -> c.endsWith(calendar.previousTradingDay(thursday) + ".." + thursday));
+    assertThat(s.snapshotCalls).hasSize(2);
+    assertThat(stored()).isEqualTo(8);
+  }
+
+  @Test
+  void tooFewSnapshotBarsFailTheRunAndNothingIsCorrected() {
+    var s = snapshots(FRIDAY.to());
+    s.snapshot.put("K1", "old");
+    s.snapshot.put("K2", "old");
+
+    assertThatThrownBy(() -> job(s, 0.9, List.of()).execute(FRIDAY))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("only 2 of 4");
+    assertThat(corrected).isEmpty();
+  }
+
+  @Test
+  void afterTheNextOpenTheRunFallsBackToHistory() {
+    addNiftyIndex();
+    var s = snapshots(FRIDAY.to());
+    s.snapshot.put("KN", "next"); // the snapshot already holds Monday's unfinished session
+
+    var outcome = job(s, 0.9, List.of("NIFTY")).execute(FRIDAY);
+
+    assertThat(s.snapshotCalls).hasSize(1); // only the probe
+    assertThat(s.historyCalls)
+        .hasSize(5)
+        .allMatch(c -> c.endsWith(calendar.previousTradingDay(FRIDAY.to()) + ".." + FRIDAY.to()));
+    assertThat(stored()).isEqualTo(5);
+    assertThat(outcome.detail()).doesNotContain("quotes");
+    assertThat(corrected).isEmpty();
+  }
+
+  @Test
+  void aBenchmarkMissingFromTheSnapshotFailsTheRun() {
+    addNiftyIndex();
+    var s = snapshots(FRIDAY.to());
+    s.snapshot.put("KN", "none");
+
+    assertThatThrownBy(() -> job(s, 0.5, List.of("NIFTY")).execute(FRIDAY))
+        .hasMessageContaining("benchmark NIFTY has no candle for 2026-01-23");
+    assertThat(stored()).isZero();
+  }
+
   @BeforeEach
   void setUp() {
     jdbc.sql(
@@ -147,15 +294,25 @@ class EodCandleJobIT extends PostgresIntegrationTest {
   }
 
   private EodCandleJob job(double minCoverage, List<String> benchmarks) {
+    return job(provider, minCoverage, benchmarks);
+  }
+
+  private final List<LocalDate> corrected = new java.util.ArrayList<>();
+
+  private EodCandleJob job(MarketDataProvider active, double minCoverage, List<String> benchmarks) {
     var ingestion =
         new CandleIngestionService(
-            provider, candles, new CandleValidator(calendar, QualityRules.defaults()), clock);
+            active, candles, new CandleValidator(calendar, QualityRules.defaults()), clock);
     return new EodCandleJob(
         ingestion,
         calendar,
         clock,
         new EodCandleJob.Settings(
-            LocalTime.of(19, 0), 30, List.of("EQ"), 0, minCoverage, benchmarks));
+            LocalTime.of(19, 0), 30, List.of("EQ"), 0, minCoverage, benchmarks),
+        session -> {
+          corrected.add(session);
+          return "correction for " + session;
+        });
   }
 
   private long stored() {

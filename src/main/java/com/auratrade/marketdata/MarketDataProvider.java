@@ -8,7 +8,8 @@ import java.util.Set;
  * A source of OHLCV candles (ADR 0015, 0016). Consumers depend on this interface only; Upstox is
  * the first implementation, Kite can follow. Implementations translate provider formats into {@link
  * Candle}s (BigDecimal prices, UTC instants, oldest first) and throw {@link ProviderException}
- * subtypes for failures. They never retry silently.
+ * subtypes for failures. They retry only a rate-limit answer, after the pause the provider asks
+ * for; every other failure is raised. A provider may also offer {@link SessionBarProvider}.
  */
 public interface MarketDataProvider {
 
