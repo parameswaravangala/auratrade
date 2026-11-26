@@ -17,12 +17,15 @@ import org.springframework.core.io.Resource;
 @Configuration(proxyBeanMethods = false)
 class MarketDataConfig {
 
-  private static final Logger log = LoggerFactory.getLogger(MarketDataConfig.class);
+  /** Same pattern as the LLM budget alerts: a dedicated logger that a real channel can replace. */
+  private static final Logger alerts =
+      LoggerFactory.getLogger("com.auratrade.marketdata.CalendarAlerts");
 
   /**
-   * Loads the NSE calendar. The app starts even if the file is empty, but any question about an
-   * uncovered year fails closed. Override the location with auratrade.marketdata.calendar-file, for
-   * example file:/opt/auratrade/nse-calendar.csv.
+   * Loads the NSE calendar once at startup. The app starts even if the file is empty, but any
+   * question about an uncovered year fails closed. Override the location with
+   * auratrade.marketdata.calendar-file, for example file:/opt/auratrade/nse-calendar.csv (see
+   * docs/runbooks/trading-calendar.md).
    */
   @Bean
   TradingCalendar tradingCalendar(
@@ -32,12 +35,8 @@ class MarketDataConfig {
       throws IOException {
     try (Reader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8)) {
       TradingCalendar calendar = TradingCalendar.fromCsv(reader);
-      int year = LocalDate.now(clock.withZone(MarketZones.IST)).getYear();
-      if (!calendar.covers(year)) {
-        log.warn(
-            "Trading calendar has no data for {}. Market-data checks will fail closed until you add it.",
-            year);
-      }
+      LocalDate today = LocalDate.now(clock.withZone(MarketZones.IST));
+      CalendarCoverageCheck.alerts(calendar, today).forEach(alerts::warn);
       return calendar;
     }
   }
