@@ -61,7 +61,8 @@ class CandleIngestionServiceIT extends PostgresIntegrationTest {
   @BeforeEach
   void setUp() {
     jdbc.sql(
-            "truncate candle, backfill_item, backfill_request, instrument_alias,"
+            "truncate paper_equity, paper_trade, paper_position, paper_order, paper_account,"
+                + " candle, backfill_item, backfill_request, instrument_alias,"
                 + " instrument_provider_key, instrument"
                 + " restart identity")
         .update();
