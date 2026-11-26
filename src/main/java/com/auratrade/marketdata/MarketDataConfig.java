@@ -53,6 +53,11 @@ class MarketDataConfig {
   }
 
   @Bean
+  SymbolResolverService symbolResolverService(JdbcClient jdbc, Clock clock) {
+    return new SymbolResolverService(new ResolverRepository(jdbc), clock);
+  }
+
+  @Bean
   InstrumentRepository instrumentRepository(JdbcClient jdbc, NamedParameterJdbcTemplate batch) {
     return new InstrumentRepository(jdbc, batch);
   }
