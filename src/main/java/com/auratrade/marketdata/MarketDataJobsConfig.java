@@ -50,6 +50,30 @@ class MarketDataJobsConfig {
         new EodCandleJob.Settings(cutoff, maxCatchUp, series, maxInstruments, minCoverage));
   }
 
+  @Bean
+  BackfillRepository backfillRepository(
+      org.springframework.jdbc.core.simple.JdbcClient jdbc,
+      org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate batch) {
+    return new BackfillRepository(jdbc, batch);
+  }
+
+  @Bean
+  BackfillService backfillService(
+      BackfillRepository repository,
+      CandleIngestionService ingestion,
+      TradingCalendar calendar,
+      Clock clock,
+      @Value("${auratrade.jobs.backfill.max-attempts:3}") int maxAttempts) {
+    return new BackfillService(repository, ingestion, calendar, clock, maxAttempts);
+  }
+
+  /** Default batch: 400 shares, about 7 minutes at the Upstox limit we use. */
+  @Bean
+  BackfillJob backfillJob(
+      BackfillService backfills, @Value("${auratrade.jobs.backfill.batch-size:400}") int batch) {
+    return new BackfillJob(backfills, batch);
+  }
+
   /** Triggers: cron schedules and a catch-up right after startup. */
   @Configuration(proxyBeanMethods = false)
   @EnableScheduling
@@ -61,11 +85,20 @@ class MarketDataJobsConfig {
     private final JobRunner runner;
     private final InstrumentMasterJob instruments;
     private final EodCandleJob eod;
+    private final BackfillJob backfill;
 
-    Triggers(JobRunner runner, InstrumentMasterJob instruments, EodCandleJob eod) {
+    Triggers(
+        JobRunner runner, InstrumentMasterJob instruments, EodCandleJob eod, BackfillJob backfill) {
       this.runner = runner;
       this.instruments = instruments;
       this.eod = eod;
+      this.backfill = backfill;
+    }
+
+    /** Takes the next batch of any open backfill; does nothing when none is open. */
+    @Scheduled(cron = "${auratrade.jobs.backfill.cron:0 */15 * * * *}", zone = "Asia/Kolkata")
+    void backfill() {
+      runner.run(backfill, Trigger.SCHEDULE);
     }
 
     @Scheduled(cron = "${auratrade.jobs.instrument-master.cron:0 0 7 * * *}", zone = "Asia/Kolkata")
@@ -87,6 +120,7 @@ class MarketDataJobsConfig {
             log.info("Startup catch-up: checking what is owed");
             runner.run(instruments, Trigger.STARTUP);
             runner.run(eod, Trigger.STARTUP);
+            runner.run(backfill, Trigger.STARTUP);
           });
     }
   }
