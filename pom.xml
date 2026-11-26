@@ -22,6 +22,7 @@
     <java.version>25</java.version>
     <archunit.version>1.4.1</archunit.version>
     <jacoco.version>0.8.14</jacoco.version>
+    <commons-csv.version>1.14.1</commons-csv.version>
     <!-- Raise to 0.80 as real code lands (see docs/adr and the development plan quality gates). -->
     <jacoco.minimum.coverage>0.00</jacoco.minimum.coverage>
     <excludedGroups>eval</excludedGroups>
@@ -69,6 +70,12 @@
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
+    </dependency>
+    <!-- CSV parsing for exchange and broker files (quoted fields) -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-csv</artifactId>
+      <version>${commons-csv.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.ai</groupId>

@@ -26,3 +26,5 @@ Items parked outside the current sprint. Keep each one small and say what unbloc
 | B-021 | Intraday gap detection (missing candles inside a session) | Only daily gaps are checked today | Intraday data (paid plan) |
 | B-022 | Kite Connect client: login flow, historical API, websocket ticks | Needs the paid data plan | Decision to subscribe |
 | B-023 | Static-IP and order-placement requirements | Live phase only | Phase 2 |
+| B-024 | Resolver (B-001) must match only company shares: series EQ, BE, SM, ST, BZ, and exclude ETF iNAV rows (symbol ends in INAV; 363 of 3,149 EQ rows on 2026-11-26) and indices | Series EQ is not only shares in the Kite file | Resolver slice |
+| B-025 | Schedule the instrument load daily (after the Kite file refreshes) and alert if it fails or is stale | Loading is manual via POST /dev/marketdata/instruments/load | Staleness-alert slice |
