@@ -52,7 +52,8 @@ class PortfolioSimulatorTest {
         BigDecimal.valueOf(2),
         maxHold,
         0,
-        costs);
+        costs,
+        false);
   }
 
   static final double[] FLAT = {100, 101, 99, 100}; // true range 2, so ATR(2) = 2
@@ -206,5 +207,55 @@ class PortfolioSimulatorTest {
     assertThat(out.trades().get(0).netPnl()).isEqualByComparingTo(expected);
     assertThat(out.days().get(5).equity())
         .isEqualByComparingTo(new BigDecimal("100000").add(expected));
+  }
+
+  /** A benchmark trending steadily up (rising = true) or down over {@code n} sessions. */
+  static PriceTable trendingBench(int n, boolean rising) {
+    double[][] bars = new double[n][];
+    for (int i = 0; i < n; i++) {
+      double p = rising ? 1000 + i : 1000 - i;
+      bars[i] = new double[] {p, p, p, p};
+    }
+    return table("NIFTY", bars);
+  }
+
+  @Test
+  void theRegimeFilterBlocksEntriesWhileTheBenchmarkIsBelowItsAverage() {
+    int n = 210;
+    double[][] bars = new double[n][];
+    java.util.Arrays.fill(bars, FLAT);
+    var share = table("ACME", bars);
+    var signal = signalOn(205, 1, "ACME");
+    var filtered =
+        new PortfolioSimulator.Settings(
+            new BigDecimal("100000"),
+            10,
+            new BigDecimal("0.01"),
+            new BigDecimal("0.20"),
+            2,
+            BigDecimal.valueOf(2),
+            60,
+            0,
+            CostModel.free(),
+            true);
+
+    var falling =
+        PortfolioSimulator.run(
+            sessions(n), Map.of(1L, share), signal, trendingBench(n, false), filtered);
+    var rising =
+        PortfolioSimulator.run(
+            sessions(n), Map.of(1L, share), signal, trendingBench(n, true), filtered);
+
+    assertThat(falling.trades()).isEmpty();
+    assertThat(rising.trades())
+        .singleElement()
+        .extracting(PortfolioSimulator.Trade::entryDate)
+        .isEqualTo(D0.plusDays(206));
+  }
+
+  @Test
+  void theRegimeFilterFailsClosedWithoutEnoughBenchmarkHistory() {
+    assertThat(PortfolioSimulator.benchmarkAboveAverage(trendingBench(150, true), D0.plusDays(149)))
+        .isFalse();
   }
 }

@@ -27,4 +27,9 @@ class BacktestConfig {
       TradingCalendar calendar) {
     return new PortfolioSimulationService(reader, candleProvider, screener, calendar);
   }
+
+  @Bean
+  StrategySweepService strategySweepService(PortfolioSimulationService simulation) {
+    return new StrategySweepService(simulation);
+  }
 }
