@@ -30,13 +30,15 @@ public class EodCandleJob implements ScheduledJob {
    * @param series share series to load, for example EQ
    * @param maxInstruments 0 for all, or a limit for short development runs
    * @param minCoverage share of instruments that must have a candle for the last day (0.5 = half)
+   * @param benchmarks indices loaded alongside the shares, for example NIFTY (relative strength)
    */
   public record Settings(
       LocalTime cutoff,
       int maxCatchUp,
       List<String> series,
       int maxInstruments,
-      double minCoverage) {}
+      double minCoverage,
+      List<String> benchmarks) {}
 
   private final CandleIngestionService ingestion;
   private final TradingCalendar calendar;
@@ -92,6 +94,17 @@ public class EodCandleJob implements ScheduledJob {
         throw e;
       } catch (RuntimeException e) {
         failed.add(share.tradingSymbol() + " (" + e.getClass().getSimpleName() + ")");
+      }
+    }
+    for (String index : settings.benchmarks()) {
+      try {
+        if (ingestion.ingestIndex(index, window.from(), window.to()).hasErrors()) {
+          failed.add(index + " (benchmark validation)");
+        }
+      } catch (ProviderException.Auth | ProviderException.RateLimited e) {
+        throw e;
+      } catch (RuntimeException e) {
+        failed.add(index + " (benchmark " + e.getClass().getSimpleName() + ")");
       }
     }
     double coverage = (double) withLastDay / universe.size();

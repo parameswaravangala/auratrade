@@ -72,6 +72,20 @@ public class CandleIngestionService {
     return ingest(target, interval, from, to);
   }
 
+  /**
+   * Loads daily candles for an index such as NIFTY (benchmarks for relative strength). Same
+   * validation and storage as shares.
+   */
+  public Result ingestIndex(String indexSymbol, LocalDate from, LocalDate to) {
+    CandleRepository.Target target =
+        candles
+            .indexTarget(EXCHANGE, indexSymbol, provider.name())
+            .orElseThrow(() ->
+                new IllegalArgumentException(
+                    indexSymbol + " is not an NSE index with a " + provider.name() + " key"));
+    return ingest(target, Interval.DAY, from, to);
+  }
+
   /** Active company shares with a key at the selected provider, in the given series. */
   public List<CandleRepository.Target> universe(List<String> series, int limit) {
     return candles.shareTargets(EXCHANGE, provider.name(), series, limit);
