@@ -4,3 +4,10 @@
 spring:
   config:
     import: optional:file:.env[.properties]
+
+auratrade:
+  jobs:
+    enabled: true
+    eod-candles:
+      # Keep development runs short; production loads every share.
+      max-instruments: 50

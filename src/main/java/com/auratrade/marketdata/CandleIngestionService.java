@@ -21,6 +21,7 @@ public class CandleIngestionService {
 
   /**
    * @param stored candles written; 0 when the report has errors
+   * @param newestDate trading date of the newest candle fetched, or null if none came back
    */
   public record Result(
       String symbol,
@@ -30,7 +31,13 @@ public class CandleIngestionService {
       LocalDate to,
       int fetched,
       int stored,
-      List<QualityIssue> issues) {}
+      LocalDate newestDate,
+      List<QualityIssue> issues) {
+
+    public boolean hasErrors() {
+      return issues.stream().anyMatch(i -> i.severity() == Severity.ERROR);
+    }
+  }
 
   private final MarketDataProvider provider;
   private final CandleRepository candles;
@@ -62,6 +69,17 @@ public class CandleIngestionService {
                         + " is not an active NSE company share with a "
                         + provider.name()
                         + " key"));
+    return ingest(target, interval, from, to);
+  }
+
+  /** Active company shares with a key at the selected provider, in the given series. */
+  public List<CandleRepository.Target> universe(List<String> series, int limit) {
+    return candles.shareTargets(EXCHANGE, provider.name(), series, limit);
+  }
+
+  public Result ingest(
+      CandleRepository.Target target, Interval interval, LocalDate from, LocalDate to) {
+    String tradingSymbol = target.tradingSymbol();
     List<Candle> fetched = provider.candles(target.providerKey(), interval, from, to);
     QualityReport report = validator.validate(interval, fetched);
     int stored = 0;
@@ -86,6 +104,7 @@ public class CandleIngestionService {
         to,
         fetched.size(),
         stored,
+        fetched.isEmpty() ? null : fetched.get(fetched.size() - 1).tradingDate(),
         report.issues());
   }
 
