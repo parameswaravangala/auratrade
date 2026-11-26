@@ -1,0 +1,6 @@
+# TEST FIXTURE ONLY. These dates are not an official NSE list.
+COVERS,2026
+HOLIDAY,2026-01-26,Fixture holiday on a Monday
+HOLIDAY,2026-10-02,Fixture holiday on a Friday
+HOLIDAY,2026-12-25,Fixture holiday on a Friday
+SPECIAL,2026-03-14,Fixture special session on a Saturday
