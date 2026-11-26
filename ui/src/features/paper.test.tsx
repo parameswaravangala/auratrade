@@ -94,6 +94,53 @@ describe("approval queue", () => {
     expect(localStorage.getItem("auratrade.decidedBy")).toBe("Tester");
   });
 
+  it("approves fewer shares with a limit price, and refuses more than proposed", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("auratrade.decidedBy", "Tester");
+    const bodies: unknown[] = [];
+    server.use(
+      http.post("*/api/v1/paper/orders/:id/approve", async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ ...PAPER_VIEW.proposed[0], status: "APPROVED", approvedQuantity: 100 });
+      }),
+    );
+    renderApp("/approvals");
+    const card = await screen.findByRole("listitem", { name: "Proposed BUY 120 ACME" });
+    await user.click(within(card).getByRole("button", { name: "Approve…" }));
+    const form = within(card).getByRole("form", { name: "Confirm approve" });
+    const qty = within(form).getByLabelText(/Quantity/);
+
+    await user.clear(qty);
+    await user.type(qty, "121");
+    expect(form).toHaveTextContent("Quantity must be a whole number from 1 to 120.");
+    expect(within(form).getByRole("button", { name: /^Approve BUY/ })).toBeDisabled();
+
+    await user.clear(qty);
+    await user.type(qty, "100");
+    await user.type(within(form).getByLabelText(/Limit: highest price/), "455.5");
+    expect(form).toHaveTextContent(
+      "Approve BUY 100 ACME on paper, to fill at the 2026-11-27 open only if the price with slippage is at or below ₹455.50?",
+    );
+    expect(within(form).getByLabelText("Chosen size")).toHaveTextContent(
+      "value about ₹45,000.00 · risk to stop ₹3,950.00",
+    );
+    await user.click(within(form).getByRole("button", { name: "Approve BUY 100 ACME" }));
+    await waitFor(() => {
+      expect(bodies).toEqual([{ by: "Tester", note: "", quantity: 100, limitPrice: 455.5 }]);
+    });
+  });
+
+  it("keeps a sell's quantity fixed but allows a lowest price", async () => {
+    const user = userEvent.setup();
+    renderApp("/approvals");
+    const card = await screen.findByRole("listitem", { name: "Proposed SELL 40 NOVA" });
+    await user.click(within(card).getByRole("button", { name: "Approve…" }));
+    const form = within(card).getByRole("form", { name: "Confirm approve" });
+    expect(within(form).queryByLabelText(/Quantity/)).not.toBeInTheDocument();
+    expect(form).toHaveTextContent("A sell closes the whole position");
+    expect(within(form).getByLabelText(/Limit: lowest price/)).toBeInTheDocument();
+  });
+
   it("shows the backend's refusal and lets you cancel", async () => {
     const user = userEvent.setup();
     localStorage.setItem("auratrade.decidedBy", "Tester");
@@ -117,13 +164,14 @@ describe("approval queue", () => {
   it("approves ticked orders together after one confirmation that lists them, reporting refusals", async () => {
     const user = userEvent.setup();
     localStorage.setItem("auratrade.decidedBy", "Tester");
-    const sent: string[] = [];
+    const sent: unknown[] = [];
     server.use(
-      http.post("*/api/v1/paper/orders/:id/approve", ({ params }) => {
-        sent.push(String(params.id));
-        return params.id === "12"
-          ? HttpResponse.json({ status: 409, detail: "order 12 is EXPIRED, not PROPOSED" }, { status: 409 })
-          : HttpResponse.json({ ...PAPER_VIEW.proposed[0], status: "APPROVED" });
+      http.post("*/api/v1/paper/orders/decide", async ({ request }) => {
+        sent.push(await request.json());
+        return HttpResponse.json([
+          { orderId: 12, ok: false, order: null, error: "order 12 is EXPIRED, not PROPOSED" },
+          { orderId: 11, ok: true, order: { ...PAPER_VIEW.proposed[0], status: "APPROVED" }, error: null },
+        ]);
       }),
     );
     renderApp("/approvals");
@@ -146,7 +194,7 @@ describe("approval queue", () => {
 
     expect(await within(bulk).findByRole("alert")).toHaveTextContent("1 approved, 1 refused");
     expect(within(bulk).getByRole("alert")).toHaveTextContent("NOVA: order 12 is EXPIRED, not PROPOSED");
-    expect(sent.sort()).toEqual(["11", "12"]);
+    expect(sent).toEqual([{ orderIds: [11, 12], approve: true, by: "Tester", note: "" }]);
     expect(screen.getByRole("checkbox", { name: "Select BUY 120 ACME" })).not.toBeChecked();
   });
 

@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { useState } from "react";
-import { useDecideMany, useReferenceCloses, type DecisionOutcome } from "@/api/queries";
+import { useDecideMany, type DecisionOutcome } from "@/api/queries";
 import type { PaperOrder } from "@/api/schemas";
 import { formatInt, formatPrice } from "@/lib/format";
 import { estimate } from "@/lib/paper";
@@ -21,12 +21,10 @@ export function BulkDecision(props: {
   const [note, setNote] = useState("");
   const [outcomes, setOutcomes] = useState<{ approve: boolean; list: DecisionOutcome[] } | null>(null);
   const many = useDecideMany();
-  const closes = useReferenceCloses(selected);
   const by = decider.trim();
 
   const ests = selected.map((o) => {
-    const c = closes.get(o.id);
-    return { order: o, est: c === undefined ? null : estimate(o, c) };
+    return { order: o, est: estimate(o) };
   });
   const priced = ests.flatMap((e) => (e.est ? [e.est] : []));
   const totalValue = priced.reduce((s, e) => s + e.value, 0);
@@ -112,7 +110,7 @@ export function BulkDecision(props: {
         >
           <p className="m-0 text-xs text-tx">
             {choice === "approve"
-              ? `Approve these ${String(n)} ${orders} on paper, each to fill at its next open?`
+              ? `Approve these ${String(n)} ${orders} on paper at the proposed quantities, with no limit price, each to fill at its next open? To change one, approve it on its own.`
               : `Reject these ${String(n)} ${orders}? They will not be traded.`}
           </p>
           <table className="w-full border-collapse text-xs" aria-label="Orders to decide">

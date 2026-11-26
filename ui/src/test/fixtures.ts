@@ -271,6 +271,10 @@ export function order(p: Partial<PaperOrder> & Pick<PaperOrder, "id" | "symbol">
     fillPrice: null,
     fillCosts: null,
     statusNote: null,
+    referencePrice: 450,
+    approvedQuantity: null,
+    limitPrice: null,
+    decideBy: "2026-11-27T03:45:00Z",
     ...p,
   };
 }
@@ -286,6 +290,7 @@ export const PROPOSED: PaperOrder[] = [
     stopPrice: null,
     score: null,
     detail: "Low 98.2 reached the stop 99",
+    referencePrice: 98.5,
   }),
 ];
 

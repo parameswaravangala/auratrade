@@ -20,8 +20,8 @@ export const STATUS_TONE: Record<PaperOrder["status"], "a" | "g" | "r" | "w" | "
   UNFILLED: "w",
 };
 
-/** Decisions close at 09:15 IST on the fill date, before NSE's 09:15 open (PaperTradingService). */
-export const decisionDeadline = (fillDate: string): Date => new Date(`${fillDate}T09:15:00+05:30`);
+/** When decisions on this order close (the backend's decideBy, 09:15 IST on the fill date). */
+export const decisionDeadline = (o: Pick<PaperOrder, "decideBy">): Date => new Date(o.decideBy);
 
 /** "11 h 40 min left", "4 min left", or null once the window has closed. */
 export function timeLeft(deadline: Date, now: Date): string | null {
@@ -92,16 +92,50 @@ export function rememberDecider(name: string): void {
   }
 }
 
-export type OrderEstimate = { price: number; value: number; riskToStop: number | null };
+export type OrderEstimate = { price: number; quantity: number; value: number; riskToStop: number | null };
+
+/** Shares the order trades: the approved quantity when the person lowered it, else the proposal. */
+export const tradedQuantity = (o: PaperOrder): number => o.approvedQuantity ?? o.quantity;
 
 /**
- * What an order is worth at its reference price, the signal day's close. The backend sizes buys from
- * that close, but fills at the next open with slippage, so the real price will differ.
+ * What an order is worth at its reference price (the signal-day close it was sized from), for the
+ * given quantity. The fill is at the next open with slippage, so the real price will differ.
+ * null when the backend sent no reference price.
  */
-export function estimate(o: PaperOrder, close: number): OrderEstimate {
+export function estimate(o: PaperOrder, quantity = tradedQuantity(o)): OrderEstimate | null {
+  const price = o.referencePrice;
+  if (price === null) return null;
   return {
-    price: close,
-    value: close * o.quantity,
-    riskToStop: o.side === "BUY" && o.stopPrice !== null ? (close - o.stopPrice) * o.quantity : null,
+    price,
+    quantity,
+    value: price * quantity,
+    riskToStop: o.side === "BUY" && o.stopPrice !== null ? (price - o.stopPrice) * quantity : null,
   };
+}
+
+/**
+ * Checks what the person typed into the approval form, as the backend will (it checks again).
+ * Returns the values to send, or the reason they cannot be sent.
+ */
+export function approvalEdits(
+  o: PaperOrder,
+  quantityText: string,
+  limitText: string,
+): { quantity?: number; limitPrice?: number } | { error: string } {
+  const out: { quantity?: number; limitPrice?: number } = {};
+  const q = quantityText.trim();
+  if (o.side === "BUY" && q !== "" && q !== String(o.quantity)) {
+    const n = Number(q);
+    if (!Number.isInteger(n) || n < 1 || n > o.quantity) {
+      return { error: `Quantity must be a whole number from 1 to ${String(o.quantity)}.` };
+    }
+    out.quantity = n;
+  }
+  const l = limitText.trim();
+  if (l !== "") {
+    const n = Number(l);
+    if (!Number.isFinite(n) || n <= 0) return { error: "Limit price must be a positive number." };
+    out.limitPrice = n;
+  }
+  return out;
 }

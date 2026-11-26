@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import clsx from "clsx";
 import { useState } from "react";
-import { useCandles, useDecide } from "@/api/queries";
+import { useDecide } from "@/api/queries";
 import type { PaperOrder } from "@/api/schemas";
 import { formatInt, formatPrice } from "@/lib/format";
-import { estimate, ORDER_REASON } from "@/lib/paper";
+import { approvalEdits, estimate, ORDER_REASON } from "@/lib/paper";
 import { label } from "@/lib/playbook";
 
 /**
@@ -29,13 +29,19 @@ export function OrderCard({
 }) {
   const [choice, setChoice] = useState<"approve" | "reject" | null>(null);
   const [note, setNote] = useState("");
+  const [qtyText, setQtyText] = useState(String(o.quantity));
+  const [limitText, setLimitText] = useState("");
   const decide = useDecide();
   const what = `${o.side} ${formatInt(o.quantity)} ${o.symbol}`;
   const by = decider.trim();
-  const ref = useCandles(o.symbol, o.signalDate, o.signalDate);
-  const close = ref.data?.at(-1)?.close;
-  const est = close === undefined ? null : estimate(o, close);
+  const est = estimate(o);
   const closed = !open;
+  const edits = choice === "approve" ? approvalEdits(o, qtyText, limitText) : {};
+  const invalid = "error" in edits ? edits.error : null;
+  const qty = "quantity" in edits && edits.quantity !== undefined ? edits.quantity : o.quantity;
+  const limit = "limitPrice" in edits ? edits.limitPrice : undefined;
+  const chosen = `${o.side} ${formatInt(qty)} ${o.symbol}`;
+  const chosenEst = estimate(o, qty);
 
   return (
     <li
@@ -76,7 +82,7 @@ export function OrderCard({
           <>
             <span>
               ref price <b className="font-medium text-tx">{formatPrice(est.price)}</b>
-              <span className="text-tx3"> (close {o.signalDate})</span>
+              <span className="text-tx3"> (close {o.signalDate}, sized from)</span>
             </span>
             <span>
               value about <b className="font-medium text-tx">{formatPrice(Math.round(est.value))}</b>
@@ -84,9 +90,7 @@ export function OrderCard({
             {est.riskToStop !== null && <span>risk to stop {formatPrice(Math.round(est.riskToStop))}</span>}
           </>
         ) : (
-          <span className="text-tx3">
-            {ref.isPending ? "loading reference price…" : "reference price unavailable"}
-          </span>
+          <span className="text-tx3">no reference price from the backend</span>
         )}
         <span className="text-tx3">fills at the {o.fillDate} open + slippage, not at this price</span>
       </div>
@@ -122,15 +126,77 @@ export function OrderCard({
           aria-label={`Confirm ${choice}`}
           onSubmit={(e) => {
             e.preventDefault();
-            if (closed || by === "") return;
-            decide.mutate({ orderId: o.id, approve: choice === "approve", by, note: note.trim() });
+            if (closed || by === "" || invalid) return;
+            decide.mutate({
+              orderId: o.id,
+              approve: choice === "approve",
+              by,
+              note: note.trim(),
+              ...(choice === "approve" ? edits : {}),
+            });
           }}
         >
           <p className="m-0 text-xs text-tx">
             {choice === "approve"
-              ? `Approve ${what} on paper, to fill at the ${o.fillDate} open?`
+              ? `Approve ${chosen} on paper, to fill at the ${o.fillDate} open${
+                  limit === undefined
+                    ? "?"
+                    : ` only if the price with slippage is ${o.side === "BUY" ? "at or below" : "at or above"} ${formatPrice(limit)}?`
+                }`
               : `Reject ${what}? It will not be traded.`}
           </p>
+          {choice === "approve" && (
+            <div className="flex flex-wrap items-end gap-3">
+              {o.side === "BUY" ? (
+                <label className="grid gap-1 text-[11px] text-tx3">
+                  Quantity (1 to {formatInt(o.quantity)})
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={o.quantity}
+                    step={1}
+                    className="num w-28 rounded-lg border border-line2 bg-s2 px-2 py-1.5 text-xs text-tx outline-none focus:border-a/60"
+                    value={qtyText}
+                    onChange={(e) => {
+                      setQtyText(e.target.value);
+                    }}
+                  />
+                </label>
+              ) : (
+                <span className="text-[11px] text-tx3">
+                  A sell closes the whole position; its quantity is fixed.
+                </span>
+              )}
+              <label className="grid gap-1 text-[11px] text-tx3">
+                {o.side === "BUY" ? "Limit: highest price (optional)" : "Limit: lowest price (optional)"}
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step={0.05}
+                  placeholder={o.referencePrice === null ? "" : o.referencePrice.toFixed(2)}
+                  className="num w-32 rounded-lg border border-line2 bg-s2 px-2 py-1.5 text-xs text-tx outline-none focus:border-a/60"
+                  value={limitText}
+                  onChange={(e) => {
+                    setLimitText(e.target.value);
+                  }}
+                />
+              </label>
+              {chosenEst && (
+                <span className="num text-[11px] text-tx2" aria-label="Chosen size">
+                  value about {formatPrice(Math.round(chosenEst.value))}
+                  {chosenEst.riskToStop !== null &&
+                    ` · risk to stop ${formatPrice(Math.round(chosenEst.riskToStop))}`}
+                </span>
+              )}
+            </div>
+          )}
+          {choice === "approve" && limit !== undefined && (
+            <p className="m-0 text-[11px] text-tx3">
+              If the {o.fillDate} open plus slippage is beyond your limit, the order is not filled.
+            </p>
+          )}
           <label className="grid gap-1 text-[11px] text-tx3">
             Your name (recorded with the decision)
             <input
@@ -159,9 +225,9 @@ export function OrderCard({
             <button
               type="submit"
               className={clsx("btn", choice === "approve" && "btn-pri")}
-              disabled={decide.isPending || closed || by === ""}
+              disabled={decide.isPending || closed || by === "" || invalid !== null}
             >
-              {decide.isPending ? "Sending…" : choice === "approve" ? `Approve ${what}` : `Reject ${what}`}
+              {decide.isPending ? "Sending…" : choice === "approve" ? `Approve ${chosen}` : `Reject ${what}`}
             </button>
             <button
               type="button"
@@ -174,7 +240,11 @@ export function OrderCard({
             >
               Cancel
             </button>
-            {by === "" && <span className="text-[11px] text-warn">Enter your name to confirm.</span>}
+            {invalid ? (
+              <span className="text-[11px] text-warn">{invalid}</span>
+            ) : (
+              by === "" && <span className="text-[11px] text-warn">Enter your name to confirm.</span>
+            )}
           </div>
           {decide.isError && (
             <div role="alert" className="text-xs text-dn">

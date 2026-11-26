@@ -2,10 +2,11 @@
  * Every backend call the UI makes, in one place. Today these hit the dev-profile endpoints; when the
  * backend adds `/api/v1` (ADR 0019) only this file changes.
  */
-import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { getJson } from "./client";
 import {
   Candles,
+  DecideOutcomes,
   Health,
   IngestionResult,
   JobRuns,
@@ -283,7 +284,16 @@ export function usePaperTrades(id: number | undefined) {
   });
 }
 
-export type Decision = { orderId: number; approve: boolean; by: string; note: string };
+export type Decision = {
+  orderId: number;
+  approve: boolean;
+  by: string;
+  note: string;
+  /** BUY only: fewer shares than proposed (1 to the proposed quantity). */
+  quantity?: number;
+  /** BUY: highest acceptable fill; SELL: lowest. */
+  limitPrice?: number;
+};
 
 /**
  * Approves or rejects one PROPOSED order. The backend refuses after 09:15 IST on the fill date and
@@ -295,7 +305,12 @@ export function useDecide() {
     mutationFn: (d: Decision) =>
       getJson(`${PAPER}/orders/${String(d.orderId)}/${d.approve ? "approve" : "reject"}`, PaperOrder, {
         method: "POST",
-        body: JSON.stringify({ by: d.by, note: d.note }),
+        body: JSON.stringify({
+          by: d.by,
+          note: d.note,
+          ...(d.quantity !== undefined && { quantity: d.quantity }),
+          ...(d.limitPrice !== undefined && { limitPrice: d.limitPrice }),
+        }),
         contentType: "application/json",
       }),
     retry: false,
@@ -303,49 +318,24 @@ export function useDecide() {
   });
 }
 
-/** The signal-day close of each order (its reference price), keyed by order id; shares the candle cache. */
-export function useReferenceCloses(orders: PaperOrder[]): Map<number, number> {
-  const results = useQueries({
-    queries: orders.map((o) => candlesQuery(o.symbol, o.signalDate, o.signalDate)),
-  });
-  const closes = new Map<number, number>();
-  orders.forEach((o, i) => {
-    const close = results[i]?.data?.at(-1)?.close;
-    if (close !== undefined) closes.set(o.id, close);
-  });
-  return closes;
-}
-
 export type ManyDecisions = { orderIds: number[]; approve: boolean; by: string; note: string };
 export type DecisionOutcome = { orderId: number; ok: boolean; message: string | null };
 
 /**
- * Decides several orders the person ticked and confirmed together. The backend has no bulk call, so
- * each order is sent on its own, one after another; one refusal does not stop the rest, and every
- * outcome is reported.
+ * Decides several orders the person ticked and confirmed together, in one call. The backend decides
+ * each on its own and reports every outcome; a refusal does not stop the rest. No quantity or limit:
+ * edits go through the single-order approval.
  */
 export function useDecideMany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (d: ManyDecisions): Promise<DecisionOutcome[]> => {
-      const outcomes: DecisionOutcome[] = [];
-      for (const orderId of d.orderIds) {
-        try {
-          await getJson(
-            `${PAPER}/orders/${String(orderId)}/${d.approve ? "approve" : "reject"}`,
-            PaperOrder,
-            {
-              method: "POST",
-              body: JSON.stringify({ by: d.by, note: d.note }),
-              contentType: "application/json",
-            },
-          );
-          outcomes.push({ orderId, ok: true, message: null });
-        } catch (e) {
-          outcomes.push({ orderId, ok: false, message: e instanceof Error ? e.message : "failed" });
-        }
-      }
-      return outcomes;
+      const out = await getJson(`${PAPER}/orders/decide`, DecideOutcomes, {
+        method: "POST",
+        body: JSON.stringify(d),
+        contentType: "application/json",
+      });
+      return out.map((o) => ({ orderId: o.orderId, ok: o.ok, message: o.error }));
     },
     retry: false,
     onSettled: () => qc.invalidateQueries({ queryKey: keys.paper }),

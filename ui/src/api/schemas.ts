@@ -320,9 +320,27 @@ export const PaperOrder = z.object({
   fillPrice: dec,
   fillCosts: dec,
   statusNote: z.string().nullable(),
+  /** The signal-day close the order was sized from; the fill is at the next open, so it differs. */
+  referencePrice: dec,
+  /** Set when the person approved fewer shares than proposed; traded = approvedQuantity ?? quantity. */
+  approvedQuantity: z.number().nullable(),
+  /** BUY: highest acceptable fill; SELL: lowest. Beyond it the order is UNFILLED. */
+  limitPrice: dec,
+  /** 09:15 IST on the fill date; decisions after it are refused. */
+  decideBy: instant,
 });
 export type PaperOrder = z.infer<typeof PaperOrder>;
 export const PaperOrders = z.array(PaperOrder);
+
+/** One result of POST /api/v1/paper/orders/decide. */
+export const DecideOutcome = z.object({
+  orderId: z.number(),
+  ok: z.boolean(),
+  order: PaperOrder.nullable(),
+  error: z.string().nullable(),
+});
+export type DecideOutcome = z.infer<typeof DecideOutcome>;
+export const DecideOutcomes = z.array(DecideOutcome);
 
 /** com.auratrade.paperbroker.PaperRepository.Position */
 export const PaperPosition = z.object({

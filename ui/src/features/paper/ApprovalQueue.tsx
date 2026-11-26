@@ -62,7 +62,7 @@ export function ApprovalQueue() {
   const proposed = view.data?.proposed ?? [];
   const decided = (orders.data ?? []).filter((o) => o.status !== "PROPOSED");
   // Only orders still proposed and still open can stay ticked.
-  const isOpen = (o: PaperOrder) => timeLeft(decisionDeadline(o.fillDate), now) !== null;
+  const isOpen = (o: PaperOrder) => timeLeft(decisionDeadline(o), now) !== null;
   const selected = proposed.filter((o) => ticked.has(o.id) && isOpen(o));
 
   return (
@@ -104,7 +104,8 @@ export function ApprovalQueue() {
             </Empty>
           ) : (
             byFillDate(proposed).map((g) => {
-              const deadline = decisionDeadline(g.fillDate);
+              // Orders for one fill date share a deadline; take the earliest to be safe.
+              const deadline = new Date(Math.min(...g.orders.map((o) => decisionDeadline(o).getTime())));
               const left = timeLeft(deadline, now);
               return (
                 <section key={g.fillDate} aria-label={`Orders for ${g.fillDate}`} className="grid gap-2">
@@ -185,7 +186,13 @@ function DecidedRow({ order: o }: { order: PaperOrder }) {
         <Link to="/dossier" search={{ symbol: o.symbol }} className="num font-semibold text-tx hover:text-a">
           {o.symbol}
         </Link>
-        <span className="num text-tx2">× {formatInt(o.quantity)}</span>
+        <span className="num text-tx2">
+          × {formatInt(o.approvedQuantity ?? o.quantity)}
+          {o.approvedQuantity !== null && (
+            <span className="text-tx3"> of {formatInt(o.quantity)} proposed</span>
+          )}
+        </span>
+        {o.limitPrice !== null && <span className="num text-tx2">limit {formatPrice(o.limitPrice)}</span>}
         <span className="text-tx3">{label(ORDER_REASON, o.reason)}</span>
         <span className={clsx("tag ml-auto", tone && `tag-${tone}`)}>{o.status.toLowerCase()}</span>
       </div>
