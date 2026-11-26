@@ -161,4 +161,9 @@ class MarketDataConfig {
       Clock clock) {
     return new CandleIngestionService(candleProvider, candles, validator, clock);
   }
+
+  @Bean
+  CandleSeriesReader candleSeriesReader(JdbcClient jdbc) {
+    return new CandleSeriesReader(jdbc);
+  }
 }

@@ -106,7 +106,8 @@ class EodCandleJobIT extends PostgresIntegrationTest {
         ingestion,
         calendar,
         clock,
-        new EodCandleJob.Settings(LocalTime.of(19, 0), 30, List.of("EQ"), 0, minCoverage));
+        new EodCandleJob.Settings(
+            LocalTime.of(19, 0), 30, List.of("EQ"), 0, minCoverage, List.of()));
   }
 
   private long stored() {

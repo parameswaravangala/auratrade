@@ -82,6 +82,25 @@ public class CandleRepository {
         .list();
   }
 
+  /** An index (segment INDEX, for example NIFTY) and its key at {@code provider}. */
+  Optional<Target> indexTarget(String exchange, String tradingSymbol, String provider) {
+    return jdbc
+        .sql(
+            """
+            select i.id, i.trading_symbol, k.provider_key
+            from instrument i
+            join instrument_provider_key k on k.instrument_id = i.id and k.provider = :provider
+            where i.exchange = :exchange and i.segment = 'INDEX' and i.trading_symbol = :symbol
+            """)
+        .param("provider", provider)
+        .param("exchange", exchange)
+        .param("symbol", tradingSymbol)
+        .query((rs, n) -> new Target(rs.getLong(1), rs.getString(2), rs.getString(3)))
+        .list()
+        .stream()
+        .findFirst();
+  }
+
   /** Inserts candles or refreshes them; the key is instrument, interval, source and time. */
   void upsert(
       long instrumentId,
