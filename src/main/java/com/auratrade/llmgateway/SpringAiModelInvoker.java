@@ -25,10 +25,24 @@ class SpringAiModelInvoker implements ModelInvoker {
 
   @Override
   public InvocationResult invoke(String model, String system, String user) {
+    return invoke(model, system, user, CallOptions.DEFAULT);
+  }
+
+  @Override
+  public InvocationResult invoke(String model, String system, String user, CallOptions options) {
+    var chatOptions = OllamaChatOptions.builder().model(model);
+    if (options.temperature() != null) {
+      chatOptions.temperature(options.temperature());
+    }
+    if (options.seed() != null) {
+      chatOptions.seed(options.seed());
+    }
+    if (options.jsonOutput()) {
+      chatOptions.format("json");
+    }
+
     Prompt prompt =
-        new Prompt(
-            List.of(new SystemMessage(system), new UserMessage(user)),
-            OllamaChatOptions.builder().model(model).build());
+        new Prompt(List.of(new SystemMessage(system), new UserMessage(user)), chatOptions.build());
 
     ChatResponse response = chatModel.call(prompt);
 
