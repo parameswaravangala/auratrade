@@ -29,7 +29,8 @@ public class EodCandleJob implements ScheduledJob {
    * @param maxCatchUp most trading days one run catches up; older gaps need a backfill
    * @param series share series to load, for example EQ
    * @param maxInstruments 0 for all, or a limit for short development runs
-   * @param minCoverage share of instruments that must have a candle for the last day (0.5 = half)
+   * @param minCoverage share of instruments that must have a candle for the last day (default 0.9;
+   *     a run that crossed midnight IST on 2026-11-26 loaded 61% and passed the old 0.5)
    * @param benchmarks indices loaded alongside the shares, for example NIFTY (relative strength)
    */
   public record Settings(
