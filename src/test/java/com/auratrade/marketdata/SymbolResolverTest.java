@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** Made-up shares that copy the shapes seen in the Kite file. Not exchange data. */
+/** Made-up shares that copy the shapes seen in the exchange instrument files. Not exchange data. */
 class SymbolResolverTest {
 
   private static final ShareRef ACME = new ShareRef(1, "ACMECOOK", "ACME COOKERS", "EQ");

@@ -4,11 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.auratrade.PostgresIntegrationTest;
-import java.io.StringReader;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,12 +19,14 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** Loads made-up instrument files (never real exchange data) into a real Postgres. */
+/**
+ * The provider-neutral loader against a real Postgres, fed by an in-memory feed of made-up
+ * instruments (never real exchange data).
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class InstrumentLoaderIT extends PostgresIntegrationTest {
 
-  private static final String HEADER = InstrumentCsvParserTest.HEADER;
-  private static final InstrumentLoader.Rules RULES = new InstrumentLoader.Rules("NSE", 2, 0.10);
+  private static final InstrumentLoader.Rules RULES = new InstrumentLoader.Rules("NSE", 2, 0.10, 3);
 
   @Autowired InstrumentRepository repository;
   @Autowired JdbcClient jdbc;
@@ -30,114 +34,217 @@ class InstrumentLoaderIT extends PostgresIntegrationTest {
 
   @BeforeEach
   void clean() {
-    jdbc.sql("truncate candle, instrument_alias, instrument restart identity").update();
+    jdbc.sql(
+            "truncate candle, instrument_alias, instrument_provider_key, instrument"
+                + " restart identity")
+        .update();
   }
 
-  /** A loader that reads {@code csv} at noon UTC on {@code date} (17:30 IST, the same date). */
-  private InstrumentLoader loader(String date, String csv) {
-    Clock clock = Clock.fixed(Instant.parse(date + "T12:00:00Z"), ZoneOffset.UTC);
+  /** A valid made-up ISIN for a number, so each test share has its own identity. */
+  static String isin(int n) {
+    String first11 = "INE%06dA01".formatted(n).substring(0, 11);
+    return first11 + Isin.checkDigit(first11);
+  }
+
+  static Instrument share(int n, String symbol, String name) {
+    return new Instrument(
+        "NSE",
+        Instrument.SEGMENT_EQ,
+        symbol,
+        "EQ",
+        name,
+        isin(n),
+        (long) n,
+        new BigDecimal("0.05"),
+        1,
+        "TEST|" + isin(n));
+  }
+
+  static Instrument index(String symbol) {
+    return new Instrument(
+        "NSE",
+        Instrument.SEGMENT_INDEX,
+        symbol,
+        "INDEX",
+        symbol,
+        null,
+        null,
+        BigDecimal.ZERO,
+        0,
+        "TEST|" + symbol);
+  }
+
+  /** A loader that reads {@code rows} at noon UTC on {@code date} (17:30 IST, the same date). */
+  private InstrumentLoader loader(String date, List<Instrument> rows) {
+    InstrumentFeed feed =
+        new InstrumentFeed() {
+          @Override
+          public String provider() {
+            return "TEST";
+          }
+
+          @Override
+          public List<Instrument> fetch() {
+            return rows;
+          }
+        };
     return new InstrumentLoader(
-        () -> new StringReader(HEADER + csv),
+        feed,
         repository,
         new TransactionTemplate(transactions),
-        clock,
+        Clock.fixed(Instant.parse(date + "T12:00:00Z"), ZoneOffset.UTC),
         RULES);
   }
 
-  private static String row(long token, String symbol, String name) {
-    return token + ",1," + symbol + ",\"" + name + "\",0,,0,0.05,1,EQ,NSE,NSE\n";
-  }
-
-  private String nameOf(String symbol) {
-    return jdbc.sql("select name from instrument where trading_symbol = :s")
-        .param("s", symbol)
+  private String symbolOf(String isin) {
+    return jdbc.sql("select trading_symbol from instrument where isin = :isin")
+        .param("isin", isin)
         .query(String.class)
         .single();
   }
 
-  private LocalDate seen(String column, String symbol) {
-    return jdbc.sql("select " + column + " from instrument where trading_symbol = :s")
-        .param("s", symbol)
+  private LocalDate seen(String column, String isin) {
+    return jdbc.sql("select " + column + " from instrument where isin = :isin")
+        .param("isin", isin)
         .query(LocalDate.class)
         .single();
   }
 
-  @Test
-  void firstLoadInsertsEverything() {
-    var result = loader("2026-11-26", row(1, "ALPHA", "Alpha") + row(2, "BETA-SM", "Beta")).load();
-
-    assertThat(result.rows()).isEqualTo(2);
-    assertThat(result.added()).isEqualTo(2);
-    assertThat(result.seenOn()).isEqualTo(LocalDate.parse("2026-11-26"));
-    assertThat(repository.seriesCounts("NSE"))
-        .extracting(InstrumentRepository.SeriesCount::series)
-        .containsExactlyInAnyOrder("EQ", "SM");
+  private long count(String table) {
+    return jdbc.sql("select count(*) from " + table).query(Long.class).single();
   }
 
   @Test
-  void laterLoadsUpdateRowsAndKeepMissingOnesAsInactive() {
-    loader("2026-11-25", row(1, "ALPHA", "Alpha") + row(2, "BETA", "Beta") + row(3, "GAMMA", "G"))
+  void firstLoadInsertsSecuritiesIndicesAndProviderKeys() {
+    var result =
+        loader("2026-11-26", List.of(share(1, "ALPHA", "Alpha"), index("TEST INDEX 50"))).load();
+
+    assertThat(result.provider()).isEqualTo("TEST");
+    assertThat(result.added()).isEqualTo(2);
+    assertThat(count("instrument")).isEqualTo(2);
+    assertThat(count("instrument_provider_key")).isEqualTo(2);
+  }
+
+  @Test
+  void aSymbolChangeUpdatesTheSameInstrumentAndIsReported() {
+    loader("2026-11-25", List.of(share(1, "OLDNAME", "Co"), share(2, "BETA", "Beta"))).load();
+
+    var result =
+        loader("2026-11-26", List.of(share(1, "NEWNAME", "Co"), share(2, "BETA", "Beta"))).load();
+
+    assertThat(result.renamed()).containsExactly("OLDNAME -> NEWNAME (" + isin(1) + ")");
+    assertThat(result.added()).isZero();
+    assertThat(symbolOf(isin(1))).isEqualTo("NEWNAME");
+    assertThat(seen("first_seen_on", isin(1))).isEqualTo(LocalDate.parse("2026-11-25"));
+    assertThat(count("instrument")).isEqualTo(2);
+  }
+
+  @Test
+  void instrumentsMissingFromTheFileStayAsInactive() {
+    loader(
+            "2026-11-25",
+            List.of(share(1, "ALPHA", "A"), share(2, "BETA", "B"), share(3, "GAMMA", "G")))
         .load();
 
     var result =
         loader(
                 "2026-11-26",
-                row(1, "ALPHA", "Alpha Renamed") + row(2, "BETA", "Beta") + row(4, "DELTA", "D"))
+                List.of(share(1, "ALPHA", "A"), share(2, "BETA", "B"), share(4, "DELTA", "D")))
             .load();
 
-    assertThat(result.added()).isEqualTo(1);
-    assertThat(result.updated()).isEqualTo(2);
     assertThat(result.notInFile()).isEqualTo(1);
-    assertThat(nameOf("ALPHA")).isEqualTo("Alpha Renamed");
-    assertThat(seen("first_seen_on", "ALPHA")).isEqualTo(LocalDate.parse("2026-11-25"));
-    assertThat(seen("last_seen_on", "ALPHA")).isEqualTo(LocalDate.parse("2026-11-26"));
-    assertThat(seen("last_seen_on", "GAMMA")).isEqualTo(LocalDate.parse("2026-11-25"));
+    assertThat(seen("last_seen_on", isin(3))).isEqualTo(LocalDate.parse("2026-11-25"));
+    assertThat(seen("last_seen_on", isin(1))).isEqualTo(LocalDate.parse("2026-11-26"));
   }
 
   @Test
-  void reportsATokenThatMovedToAnotherSymbol() {
-    loader("2026-11-25", row(1, "OLDNAME", "Co") + row(2, "BETA", "Beta")).load();
+  void aShareAndItsWarrantMayShareASymbolInDifferentSeries() {
+    Instrument warrant =
+        new Instrument(
+            "NSE",
+            Instrument.SEGMENT_EQ,
+            "ALPHA",
+            "W1",
+            "Alpha warrants",
+            isin(9),
+            9L,
+            new BigDecimal("0.05"),
+            1,
+            "TEST|" + isin(9));
 
-    var result = loader("2026-11-26", row(1, "NEWNAME", "Co") + row(2, "BETA", "Beta")).load();
+    var result = loader("2026-11-26", List.of(share(1, "ALPHA", "Alpha"), warrant)).load();
 
-    assertThat(result.tokenMoves()).containsExactly("OLDNAME -> NEWNAME");
+    assertThat(result.added()).isEqualTo(2);
   }
 
   @Test
   void refusesAFileThatShrankTooMuchAndStoresNothing() {
-    String big = "";
+    List<Instrument> big = new ArrayList<>();
     for (int i = 1; i <= 20; i++) {
-      big += row(i, "SYM" + i, "Co " + i);
+      big.add(share(i, "SYM" + i, "Co " + i));
     }
     loader("2026-11-25", big).load();
 
-    assertThatThrownBy(
-            () -> loader("2026-11-26", row(1, "SYM1", "Changed") + row(2, "SYM2", "x")).load())
+    assertThatThrownBy(() ->
+            loader("2026-11-26", List.of(share(1, "CHANGED", "x"), share(2, "SYM2", "x"))).load())
         .isInstanceOf(InstrumentFileException.class)
         .hasMessageContaining("refusing a drop");
-    assertThat(nameOf("SYM1")).isEqualTo("Co 1");
+    assertThat(symbolOf(isin(1))).isEqualTo("SYM1");
+  }
+
+  private static Instrument badIsin(int n) {
+    return new Instrument(
+        "NSE", "EQ", "BAD" + n, "EQ", "Bad", "INE000A01005", 1L, BigDecimal.ONE, 1, "TEST|bad" + n);
   }
 
   @Test
-  void refusesDuplicateTokensTooFewRowsAndOtherExchanges() {
-    assertThatThrownBy(() -> loader("2026-11-26", row(1, "A", "A") + row(1, "B", "B")).load())
+  void aRowWithABadIsinIsRejectedAndReportedWhileTheRestLoads() {
+    var result =
+        loader("2026-11-26", List.of(share(1, "A", "A"), share(2, "B", "B"), badIsin(1))).load();
+
+    assertThat(result.rows()).isEqualTo(2);
+    assertThat(result.rejected()).singleElement().asString().contains("BAD1", "invalid ISIN");
+    assertThat(count("instrument")).isEqualTo(2);
+  }
+
+  @Test
+  void tooManyRejectedRowsFailTheWholeLoad() {
+    List<Instrument> rows = new ArrayList<>(List.of(share(1, "A", "A"), share(2, "B", "B")));
+    for (int i = 1; i <= RULES.maxRejected() + 1; i++) {
+      rows.add(badIsin(i));
+    }
+
+    assertThatThrownBy(() -> loader("2026-11-26", rows).load())
+        .isInstanceOf(InstrumentFileException.class)
+        .hasMessageContaining("rows rejected");
+    assertThat(count("instrument")).isZero();
+  }
+
+  @Test
+  void refusesDuplicatesTooFewRowsAndOtherExchanges() {
+    Instrument otherExchange =
+        new Instrument(
+            "BSE", "EQ", "B", "EQ", "B", isin(2), 2L, BigDecimal.ONE, 1, "TEST|" + isin(2));
+
+    assertThatThrownBy(
+            () -> loader("2026-11-26", List.of(share(1, "A", "A"), share(1, "B", "B"))).load())
         .hasMessageContaining("appears twice");
-    assertThatThrownBy(() -> loader("2026-11-26", row(1, "A", "A")).load())
+    assertThatThrownBy(() -> loader("2026-11-26", List.of(share(1, "A", "A"))).load())
         .hasMessageContaining("at least 2");
-    assertThatThrownBy(() ->
-            loader("2026-11-26", row(1, "A", "A") + "2,1,B,\"B\",0,,0,0.05,1,EQ,BSE,BSE\n").load())
+    assertThatThrownBy(
+            () -> loader("2026-11-26", List.of(share(1, "A", "A"), otherExchange)).load())
         .hasMessageContaining("expected NSE");
-    assertThat(jdbc.sql("select count(*) from instrument").query(Long.class).single()).isZero();
+    assertThat(count("instrument")).isZero();
   }
 
   @Test
   void reloadingOnTheSameDayChangesNothingButTheData() {
-    loader("2026-11-26", row(1, "ALPHA", "Alpha") + row(2, "BETA", "Beta")).load();
+    loader("2026-11-26", List.of(share(1, "ALPHA", "A"), share(2, "BETA", "B"))).load();
 
-    var again = loader("2026-11-26", row(1, "ALPHA", "Alpha") + row(2, "BETA", "Beta")).load();
+    var again = loader("2026-11-26", List.of(share(1, "ALPHA", "A"), share(2, "BETA", "B"))).load();
 
     assertThat(again.added()).isZero();
     assertThat(again.updated()).isEqualTo(2);
-    assertThat(again.notInFile()).isZero();
+    assertThat(count("instrument_provider_key")).isEqualTo(2);
   }
 }

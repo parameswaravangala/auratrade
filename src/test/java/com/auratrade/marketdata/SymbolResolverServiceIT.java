@@ -23,24 +23,28 @@ class SymbolResolverServiceIT extends PostgresIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    jdbc.sql("truncate candle, instrument_alias, instrument restart identity").update();
-    insert("ACMECOOK", "EQ", "ACME COOKERS", "2026-11-26");
-    insert("ACMEINAV", "EQ", "ACMEAMC - ACMEINAV", "2026-11-26");
-    insert("ACMEBOND-N0", "N0", null, "2026-11-26");
-    insert("OLDCO", "EQ", "OLD COMPANY", "2026-11-25"); // not in the latest load
+    jdbc.sql(
+            "truncate candle, instrument_alias, instrument_provider_key, instrument"
+                + " restart identity")
+        .update();
+    insert("ACMECOOK", "EQ", "ACME COOKERS", InstrumentLoaderIT.isin(1), "2026-11-26");
+    insert("NOISIN", "EQ", "NO ISIN COMPANY", null, "2026-11-26"); // legacy row
+    insert("ACMEBOND", "N0", null, InstrumentLoaderIT.isin(2), "2026-11-26");
+    insert("OLDCO", "EQ", "OLD COMPANY", InstrumentLoaderIT.isin(3), "2026-11-25"); // inactive
     service.refresh();
   }
 
-  private void insert(String symbol, String series, String name, String seen) {
+  private void insert(String symbol, String series, String name, String isin, String seen) {
     jdbc.sql(
             """
             insert into instrument (exchange, trading_symbol, series, segment, instrument_type,
-                                    name, tick_size, lot_size, first_seen_on, last_seen_on)
-            values ('NSE', :symbol, :series, 'NSE', 'EQ', :name, 0.01, 1, :seen, :seen)
+                                    name, isin, tick_size, lot_size, first_seen_on, last_seen_on)
+            values ('NSE', :symbol, :series, 'EQ', :series, :name, :isin, 0.01, 1, :seen, :seen)
             """)
         .param("symbol", symbol)
         .param("series", series)
         .param("name", name)
+        .param("isin", isin)
         .param("seen", LocalDate.parse(seen))
         .update();
   }
@@ -49,8 +53,8 @@ class SymbolResolverServiceIT extends PostgresIntegrationTest {
   void onlyActiveCompanySharesAreCandidates() {
     assertThat(service.refresh().size()).isEqualTo(1);
     assertThat(service.resolve("Acme Cookers Ltd")).isInstanceOf(Resolved.class);
-    assertThat(service.resolve("ACMEINAV")).isInstanceOf(Unresolved.class);
-    assertThat(service.resolve("ACMEBOND-N0")).isInstanceOf(Unresolved.class);
+    assertThat(service.resolve("NOISIN")).isInstanceOf(Unresolved.class);
+    assertThat(service.resolve("ACMEBOND")).isInstanceOf(Unresolved.class);
     assertThat(service.resolve("Old Company")).isInstanceOf(Unresolved.class);
   }
 
@@ -70,7 +74,7 @@ class SymbolResolverServiceIT extends PostgresIntegrationTest {
     assertThatThrownBy(() -> service.addAlias("Old", "OLDCO", null))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("not an active");
-    assertThatThrownBy(() -> service.addAlias("Bond", "ACMEBOND-N0", null))
+    assertThatThrownBy(() -> service.addAlias("Bond", "ACMEBOND", null))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> service.addAlias("...", "ACMECOOK", null))
         .isInstanceOf(IllegalArgumentException.class);

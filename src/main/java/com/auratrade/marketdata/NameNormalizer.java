@@ -8,7 +8,7 @@ import java.util.Set;
 
 /**
  * Turns a company name into comparable tokens: upper case, "&" to AND, punctuation to spaces, and
- * trailing legal suffixes removed. A trailing single "L" is dropped too, because the Kite file
+ * trailing legal suffixes removed. A trailing single "L" is dropped too, because the exchange data
  * truncates many names to end in "... L" (for LIMITED).
  */
 final class NameNormalizer {

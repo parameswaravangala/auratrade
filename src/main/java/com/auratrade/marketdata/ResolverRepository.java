@@ -12,16 +12,15 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 class ResolverRepository {
 
   /**
-   * Company shares only (backlog B-024): equity series, not ETF iNAV rows, not rights entitlements,
-   * and active, meaning present in the latest instrument load.
+   * Company shares only (backlog B-024): share series with an ISIN (the Upstox file types ETF iNAV
+   * rows and rights separately), and active, meaning present in the latest instrument load.
    */
   private static final String ACTIVE_SHARES =
       """
       from instrument i
       where i.exchange = :exchange
         and i.series in ('EQ', 'BE', 'SM', 'ST', 'BZ')
-        and i.trading_symbol not like '%INAV'
-        and i.trading_symbol !~ '-RE[0-9]*(-|$)'
+        and i.isin is not null
         and i.last_seen_on = (select max(last_seen_on) from instrument where exchange = :exchange)
       """;
 
