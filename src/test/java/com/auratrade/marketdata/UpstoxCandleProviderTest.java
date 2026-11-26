@@ -14,11 +14,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -33,6 +35,7 @@ class UpstoxCandleProviderTest {
 
   private MockRestServiceServer server;
   private UpstoxCandleProvider provider;
+  private final List<Duration> pauses = new ArrayList<>();
 
   @BeforeEach
   void setUp() {
@@ -49,7 +52,44 @@ class UpstoxCandleProviderTest {
         builder.build(),
         token,
         limiter,
-        Clock.fixed(Instant.parse("2026-11-26T14:00:00Z"), ZoneOffset.UTC));
+        Clock.fixed(Instant.parse("2026-11-26T14:00:00Z"), ZoneOffset.UTC),
+        pauses::add);
+  }
+
+  private static final String ONE_DAY =
+      """
+      {"status":"success","data":{"candles":[
+        ["2026-11-20T00:00:00+05:30",100.05,101.1,99.95,100.75,1200,0]]}}
+      """;
+
+  @Test
+  void aRateLimitAnswerIsRetriedAfterAPause() {
+    String day = url("days", 1, "2026-11-20", "2026-11-20");
+    server.expect(requestTo(day)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+    server.expect(requestTo(day)).andRespond(withSuccess(ONE_DAY, MediaType.APPLICATION_JSON));
+
+    var candles =
+        provider.candles(
+            KEY, Interval.DAY, LocalDate.parse("2026-11-20"), LocalDate.parse("2026-11-20"));
+
+    server.verify();
+    assertThat(candles).hasSize(1);
+    assertThat(pauses).containsExactly(UpstoxCandleProvider.RATE_LIMIT_PAUSE);
+  }
+
+  @Test
+  void aRateLimitThatPersistsIsRaisedAfterTheRetries() {
+    server
+        .expect(
+            ExpectedCount.times(UpstoxCandleProvider.RATE_LIMIT_RETRIES + 1),
+            requestTo(url("days", 1, "2026-11-20", "2026-11-20")))
+        .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+
+    assertThatThrownBy(() ->
+            provider.candles(
+                KEY, Interval.DAY, LocalDate.parse("2026-11-20"), LocalDate.parse("2026-11-20")))
+        .isInstanceOf(ProviderException.RateLimited.class);
+    assertThat(pauses).hasSize(UpstoxCandleProvider.RATE_LIMIT_RETRIES);
   }
 
   private static String url(String unit, int interval, String to, String from) {

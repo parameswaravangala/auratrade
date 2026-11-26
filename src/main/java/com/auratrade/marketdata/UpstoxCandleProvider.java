@@ -48,6 +48,17 @@ final class UpstoxCandleProvider implements MarketDataProvider {
   private final String token;
   private final WindowRateLimiter limiter;
   private final java.time.Clock clock;
+  private final WindowRateLimiter.Sleeper sleeper;
+
+  /**
+   * A 429 is retried after a pause, because one rejected call should not end a run of thousands.
+   * Upstox's published limits (rate-limiting page, read 2026-11-26) are per second, per minute and
+   * per 30 minutes; our limiter stays at 80% of them, yet Upstox answered 429 on 2026-11-26, so its
+   * counting differs from ours in some way we cannot see. One minute clears its per-minute window.
+   */
+  static final java.time.Duration RATE_LIMIT_PAUSE = java.time.Duration.ofMinutes(1);
+
+  static final int RATE_LIMIT_RETRIES = 3;
 
   /**
    * @param http a RestClient whose base URL is the Upstox API root, for example
@@ -57,6 +68,16 @@ final class UpstoxCandleProvider implements MarketDataProvider {
    */
   UpstoxCandleProvider(
       RestClient http, String token, WindowRateLimiter limiter, java.time.Clock clock) {
+    this(http, token, limiter, clock, d -> Thread.sleep(d.toMillis()));
+  }
+
+  UpstoxCandleProvider(
+      RestClient http,
+      String token,
+      WindowRateLimiter limiter,
+      java.time.Clock clock,
+      WindowRateLimiter.Sleeper sleeper) {
+    this.sleeper = sleeper;
     this.http = http;
     this.token = token == null ? "" : token.trim();
     this.limiter = limiter;
@@ -141,6 +162,24 @@ final class UpstoxCandleProvider implements MarketDataProvider {
   }
 
   private List<Candle> fetch(String key, String uriTemplate, Object... uriVariables) {
+    for (int attempt = 0; ; attempt++) {
+      try {
+        return fetchOnce(key, uriTemplate, uriVariables);
+      } catch (ProviderException.RateLimited e) {
+        if (attempt >= RATE_LIMIT_RETRIES) {
+          throw e;
+        }
+        try {
+          sleeper.sleep(RATE_LIMIT_PAUSE);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw e;
+        }
+      }
+    }
+  }
+
+  private List<Candle> fetchOnce(String key, String uriTemplate, Object... uriVariables) {
     limiter.acquire();
     return http.get()
         .uri(uriTemplate, uriVariables)
