@@ -10,3 +10,30 @@
 #
 # Weekends are closed automatically. Add the COVERS row only after ALL holidays and special
 # sessions of that year are entered; a partly filled year is worse than an empty one.
+
+# ---------------------------------------------------------------------------------------------
+# 2026. Source: NSE "Holidays for the calendar year 2026 - Equities", Trading Holidays tab,
+# https://www.nseindia.com/resources/exchange-communication-holidays (now redirects to
+# www.nseindia.in). Read 2026-11-26. Weekend holidays on that page (15 Feb, 21 Mar, 15 Aug)
+# need no row: weekends are closed automatically.
+# ---------------------------------------------------------------------------------------------
+HOLIDAY,2026-01-15,Municipal Corporation Election - Maharashtra
+HOLIDAY,2026-01-26,Republic Day
+HOLIDAY,2026-03-03,Holi
+HOLIDAY,2026-03-26,Shri Ram Navami
+HOLIDAY,2026-03-31,Shri Mahavir Jayanti
+HOLIDAY,2026-04-03,Good Friday
+HOLIDAY,2026-04-14,Dr. Baba Saheb Ambedkar Jayanti
+HOLIDAY,2026-05-01,Maharashtra Day
+HOLIDAY,2026-05-28,Bakri Id
+HOLIDAY,2026-06-26,Muharram
+HOLIDAY,2026-09-14,Ganesh Chaturthi
+HOLIDAY,2026-10-02,Mahatma Gandhi Jayanti
+HOLIDAY,2026-10-20,Dussehra
+HOLIDAY,2026-11-10,Diwali-Balipratipada
+HOLIDAY,2026-11-24,Prakash Gurpurb Sri Guru Nanak Dev
+HOLIDAY,2026-12-25,Christmas
+# Muhurat trading on Sunday 08-Nov-2026 (Diwali Laxmi Pujan), per the note on the same page.
+# Session timings were to be notified by circular; any time on a SPECIAL day is accepted.
+SPECIAL,2026-11-08,Muhurat Trading (Diwali Laxmi Pujan)
+COVERS,2026
