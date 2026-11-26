@@ -37,8 +37,13 @@ public class LlmGateway {
     this.clock = clock;
   }
 
-  /** Throws BudgetExceededException (do not run) or LlmCallFailedException (provider failed). */
+  /** Same as the four-argument call with provider defaults. */
   public LlmResult call(AgentType agent, String system, String user) {
+    return call(agent, system, user, CallOptions.DEFAULT);
+  }
+
+  /** Throws BudgetExceededException (do not run) or LlmCallFailedException (provider failed). */
+  public LlmResult call(AgentType agent, String system, String user, CallOptions options) {
     AgentPolicy policy = properties.policy(agent);
     Tier tier = tiers.resolveTier(agent);
     String runId = UUID.randomUUID().toString();
@@ -48,7 +53,7 @@ public class LlmGateway {
       TierConfig config = properties.tier(tier);
       attemptsOnTier++;
       try {
-        InvocationResult result = invoker.invoke(config.model(), system, user);
+        InvocationResult result = invoker.invoke(config.model(), system, user, options);
         BigDecimal cost = CostCalculator.cost(config.price(), result.usage());
         usage.record(
             new UsageEntry(

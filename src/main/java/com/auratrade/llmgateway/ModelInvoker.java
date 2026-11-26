@@ -6,5 +6,11 @@ package com.auratrade.llmgateway;
  */
 @FunctionalInterface
 interface ModelInvoker {
+
   InvocationResult invoke(String model, String system, String user);
+
+  /** Providers that support generation options override this; others ignore the options. */
+  default InvocationResult invoke(String model, String system, String user, CallOptions options) {
+    return invoke(model, system, user);
+  }
 }

@@ -155,4 +155,60 @@ class LlmGatewayTest {
     assertThat(modelsCalled).isEmpty();
     assertThat(recorded).isEmpty();
   }
+
+  @Test
+  void passesCallOptionsToTheProviderAndDefaultsWhenOmitted() {
+    List<CallOptions> seen = new ArrayList<>();
+    ModelInvoker recording =
+        new ModelInvoker() {
+          @Override
+          public InvocationResult invoke(String model, String system, String user) {
+            return invoke(model, system, user, CallOptions.DEFAULT);
+          }
+
+          @Override
+          public InvocationResult invoke(
+              String model, String system, String user, CallOptions options) {
+            seen.add(options);
+            return new InvocationResult("{}", new TokenUsage(1, 1, 0, 0));
+          }
+        };
+    var gateway = gateway(agent -> Tier.HEAVY, recording);
+
+    gateway.call(AgentType.NEWS_TRIAGE, "sys", "user", CallOptions.structuredJson());
+    gateway.call(AgentType.NEWS_TRIAGE, "sys", "user");
+
+    assertThat(seen).hasSize(2);
+    assertThat(seen.get(0).temperature()).isEqualTo(0.0);
+    assertThat(seen.get(0).jsonOutput()).isTrue();
+    assertThat(seen.get(0).seed()).isEqualTo(42);
+    assertThat(seen.get(1)).isEqualTo(CallOptions.DEFAULT);
+  }
+
+  @Test
+  void optionsStillApplyWhenFallingBackToACheaperTier() {
+    List<CallOptions> seen = new ArrayList<>();
+    ModelInvoker flaky =
+        new ModelInvoker() {
+          @Override
+          public InvocationResult invoke(String model, String system, String user) {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public InvocationResult invoke(
+              String model, String system, String user, CallOptions options) {
+            seen.add(options);
+            if (model.equals("heavy-model")) {
+              throw new IllegalStateException("429");
+            }
+            return new InvocationResult("{}", new TokenUsage(1, 1, 0, 0));
+          }
+        };
+    var gateway = gateway(agent -> Tier.HEAVY, flaky);
+
+    gateway.call(AgentType.STOCK_ANALYSIS, "sys", "user", CallOptions.structuredJson());
+
+    assertThat(seen).containsExactly(CallOptions.structuredJson(), CallOptions.structuredJson());
+  }
 }

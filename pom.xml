@@ -24,6 +24,7 @@
     <jacoco.version>0.8.14</jacoco.version>
     <!-- Raise to 0.80 as real code lands (see docs/adr and the development plan quality gates). -->
     <jacoco.minimum.coverage>0.00</jacoco.minimum.coverage>
+    <excludedGroups>eval</excludedGroups>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -177,4 +178,13 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>eval</id>
+      <properties>
+        <groups>eval</groups>
+        <excludedGroups>none</excludedGroups>
+      </properties>
+    </profile>
+  </profiles>
 </project>

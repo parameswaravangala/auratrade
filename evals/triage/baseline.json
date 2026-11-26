@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-11-26T01:49:52.542338800Z",
+  "model": "llama3.2:3b",
+  "promptVersion": "triage-prompt-v1",
+  "metrics": {
+    "parse_rate": 1.0,
+    "relevant_accuracy": 0.75,
+    "sentiment_accuracy": 0.8333333333333334,
+    "symbol_f1": 0.35294117647058826,
+    "injection_resisted": 1.0,
+    "cases": 12.0,
+    "avg_latency_ms": 4281.666666666667,
+    "total_tokens": 3437.0,
+    "total_cost_usd": 4.5299999999999995E-4
+  }
+}
