@@ -11,12 +11,16 @@ import com.auratrade.platform.ratelimit.WindowRateLimiter;
 import com.auratrade.platform.ratelimit.WindowRateLimiter.Limit;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -31,6 +35,7 @@ class UpstoxCandleProviderTest {
 
   private MockRestServiceServer server;
   private UpstoxCandleProvider provider;
+  private final List<Duration> pauses = new ArrayList<>();
 
   @BeforeEach
   void setUp() {
@@ -43,7 +48,80 @@ class UpstoxCandleProviderTest {
     var limiter =
         new WindowRateLimiter(
             List.of(new Limit(1000, Duration.ofSeconds(1))), Clock.systemUTC(), d -> {});
-    return new UpstoxCandleProvider(builder.build(), token, limiter);
+    return new UpstoxCandleProvider(
+        builder.build(),
+        token,
+        limiter,
+        Clock.fixed(Instant.parse("2026-11-26T14:00:00Z"), ZoneOffset.UTC),
+        pauses::add);
+  }
+
+  private static final String ONE_DAY =
+      """
+      {"status":"success","data":{"candles":[
+        ["2026-11-20T00:00:00+05:30",100.05,101.1,99.95,100.75,1200,0]]}}
+      """;
+
+  @Test
+  void aRateLimitAnswerIsRetriedAfterAPause() {
+    String day = url("days", 1, "2026-11-20", "2026-11-20");
+    server.expect(requestTo(day)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+    server.expect(requestTo(day)).andRespond(withSuccess(ONE_DAY, MediaType.APPLICATION_JSON));
+
+    var candles =
+        provider.candles(
+            KEY, Interval.DAY, LocalDate.parse("2026-11-20"), LocalDate.parse("2026-11-20"));
+
+    server.verify();
+    assertThat(candles).hasSize(1);
+    assertThat(pauses).containsExactly(UpstoxCandleProvider.RATE_LIMIT_PAUSE);
+  }
+
+  @Test
+  void aRetryAfterHeaderSetsThePause() {
+    String day = url("days", 1, "2026-11-20", "2026-11-20");
+    server
+        .expect(requestTo(day))
+        .andRespond(
+            withStatus(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", "151")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body("error code: 1015"));
+    server.expect(requestTo(day)).andRespond(withSuccess(ONE_DAY, MediaType.APPLICATION_JSON));
+
+    provider.candles(
+        KEY, Interval.DAY, LocalDate.parse("2026-11-20"), LocalDate.parse("2026-11-20"));
+
+    assertThat(pauses).containsExactly(Duration.ofSeconds(156));
+  }
+
+  @Test
+  void aRetryAfterBeyondTheMaximumIsNotWaitedFor() {
+    server
+        .expect(requestTo(url("days", 1, "2026-11-20", "2026-11-20")))
+        .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", "3600"));
+
+    assertThatThrownBy(() ->
+            provider.candles(
+                KEY, Interval.DAY, LocalDate.parse("2026-11-20"), LocalDate.parse("2026-11-20")))
+        .isInstanceOf(ProviderException.RateLimited.class)
+        .hasMessageContaining("retry after 3600 s");
+    assertThat(pauses).isEmpty();
+  }
+
+  @Test
+  void aRateLimitThatPersistsIsRaisedAfterTheRetries() {
+    server
+        .expect(
+            ExpectedCount.times(UpstoxCandleProvider.RATE_LIMIT_RETRIES + 1),
+            requestTo(url("days", 1, "2026-11-20", "2026-11-20")))
+        .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+
+    assertThatThrownBy(() ->
+            provider.candles(
+                KEY, Interval.DAY, LocalDate.parse("2026-11-20"), LocalDate.parse("2026-11-20")))
+        .isInstanceOf(ProviderException.RateLimited.class);
+    assertThat(pauses).hasSize(UpstoxCandleProvider.RATE_LIMIT_RETRIES);
   }
 
   private static String url(String unit, int interval, String to, String from) {
@@ -202,5 +280,52 @@ class UpstoxCandleProviderTest {
             LocalDate.parse("2018-01-02")
                 .atStartOfDay(com.auratrade.platform.time.MarketZones.IST)
                 .toInstant());
+  }
+
+  @Test
+  void aRangeThatReachesTodayTakesTodayFromTheIntradayEndpoint() {
+    // The clock says 2026-11-26 (IST). History stops at yesterday; today comes from intraday.
+    server
+        .expect(requestTo(url("days", 1, "2026-11-25", "2026-11-25")))
+        .andRespond(
+            withSuccess(
+                "{\"status\":\"success\",\"data\":{\"candles\":["
+                    + "[\"2026-11-25T00:00:00+05:30\",10,11,9,10.5,100,0]]}}",
+                MediaType.APPLICATION_JSON));
+    server
+        .expect(requestTo(BASE + "/v3/historical-candle/intraday/NSE_EQ%7CINE000A01004/days/1"))
+        .andRespond(
+            withSuccess(
+                "{\"status\":\"success\",\"data\":{\"candles\":["
+                    + "[\"2026-11-26T00:00:00+05:30\",10.5,12,10.4,11.8,300,0]]}}",
+                MediaType.APPLICATION_JSON));
+
+    var candles =
+        provider.candles(
+            KEY, Interval.DAY, LocalDate.parse("2026-11-25"), LocalDate.parse("2026-11-26"));
+
+    server.verify();
+    assertThat(candles)
+        .extracting(Candle::tradingDate)
+        .containsExactly(LocalDate.parse("2026-11-25"), LocalDate.parse("2026-11-26"));
+    assertThat(candles.get(1).close()).isEqualByComparingTo("11.8");
+  }
+
+  @Test
+  void aRangeOfOnlyTodayMakesOneIntradayCall() {
+    server
+        .expect(requestTo(BASE + "/v3/historical-candle/intraday/NSE_EQ%7CINE000A01004/days/1"))
+        .andRespond(
+            withSuccess(
+                "{\"status\":\"success\",\"data\":{\"candles\":["
+                    + "[\"2026-11-26T00:00:00+05:30\",10.5,12,10.4,11.8,300,0]]}}",
+                MediaType.APPLICATION_JSON));
+
+    var candles =
+        provider.candles(
+            KEY, Interval.DAY, LocalDate.parse("2026-11-26"), LocalDate.parse("2026-11-26"));
+
+    server.verify();
+    assertThat(candles).hasSize(1);
   }
 }

@@ -42,7 +42,7 @@ class MarketDataJobsConfig {
       @Value("${auratrade.jobs.eod-candles.max-catch-up-days:30}") int maxCatchUp,
       @Value("${auratrade.jobs.eod-candles.series:EQ}") List<String> series,
       @Value("${auratrade.jobs.eod-candles.max-instruments:0}") int maxInstruments,
-      @Value("${auratrade.jobs.eod-candles.min-coverage:0.5}") double minCoverage,
+      @Value("${auratrade.jobs.eod-candles.min-coverage:0.9}") double minCoverage,
       @Value("${auratrade.jobs.eod-candles.benchmarks:NIFTY}") List<String> benchmarks) {
     return new EodCandleJob(
         ingestion,

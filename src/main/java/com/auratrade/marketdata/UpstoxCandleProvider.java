@@ -47,16 +47,59 @@ final class UpstoxCandleProvider implements MarketDataProvider {
   private final RestClient http;
   private final String token;
   private final WindowRateLimiter limiter;
+  private final java.time.Clock clock;
+  private final WindowRateLimiter.Sleeper sleeper;
+
+  /**
+   * A 429 is retried after a pause, because one rejected call should not end a run of thousands.
+   * Seen 2026-11-26: besides Upstox's published API limits, Cloudflare in front of api.upstox.com
+   * answers 429 "error code: 1015" with a Retry-After header (151 s), at a threshold that is not
+   * published. The pause is the Retry-After plus a margin, at least one minute; a provider asking
+   * for longer than {@link #MAX_RATE_LIMIT_PAUSE} is not waited for.
+   */
+  static final java.time.Duration RATE_LIMIT_PAUSE = java.time.Duration.ofMinutes(1);
+
+  static final java.time.Duration RETRY_AFTER_MARGIN = java.time.Duration.ofSeconds(5);
+  static final java.time.Duration MAX_RATE_LIMIT_PAUSE = java.time.Duration.ofMinutes(10);
+  static final int RATE_LIMIT_RETRIES = 3;
+
+  static java.time.Duration pauseFor(ProviderException.RateLimited e) {
+    return e.retryAfter()
+        .map(d -> d.plus(RETRY_AFTER_MARGIN))
+        .filter(d -> d.compareTo(RATE_LIMIT_PAUSE) > 0)
+        .orElse(RATE_LIMIT_PAUSE);
+  }
+
+  /** Retry-After in delta-seconds; an HTTP date or anything else is ignored. */
+  static java.time.Duration retryAfter(String header) {
+    if (header == null || !header.trim().matches("\\d{1,6}")) {
+      return null;
+    }
+    return java.time.Duration.ofSeconds(Long.parseLong(header.trim()));
+  }
 
   /**
    * @param http a RestClient whose base URL is the Upstox API root, for example
    *     https://api.upstox.com
    * @param token the Analytics token; blank means not configured
+   * @param clock decides which date is "today" (IST)
    */
-  UpstoxCandleProvider(RestClient http, String token, WindowRateLimiter limiter) {
+  UpstoxCandleProvider(
+      RestClient http, String token, WindowRateLimiter limiter, java.time.Clock clock) {
+    this(http, token, limiter, clock, d -> Thread.sleep(d.toMillis()));
+  }
+
+  UpstoxCandleProvider(
+      RestClient http,
+      String token,
+      WindowRateLimiter limiter,
+      java.time.Clock clock,
+      WindowRateLimiter.Sleeper sleeper) {
+    this.sleeper = sleeper;
     this.http = http;
     this.token = token == null ? "" : token.trim();
     this.limiter = limiter;
+    this.clock = clock;
   }
 
   @Override
@@ -86,14 +129,32 @@ final class UpstoxCandleProvider implements MarketDataProvider {
       throw new ProviderException.Auth(
           NAME, "UPSTOX_ANALYTICS_TOKEN is not set; generate it in the Upstox developer console");
     }
+    // The historical endpoint stops at yesterday; today's daily bar comes from the intraday
+    // endpoint (checked live 2026-11-26). Split a DAY request that reaches today.
+    LocalDate today = LocalDate.now(clock.withZone(com.auratrade.platform.time.MarketZones.IST));
+    boolean includesToday = interval == Interval.DAY && !from.isAfter(today) && !to.isBefore(today);
+    LocalDate historicalTo = includesToday ? today.minusDays(1) : to;
     List<Candle> out = new ArrayList<>();
-    for (LocalDate start = from; !start.isAfter(to); ) {
+    for (LocalDate start = from; !start.isAfter(historicalTo); ) {
       LocalDate end = start.plus(unit.maxSpan()).minusDays(1);
-      if (end.isAfter(to)) {
-        end = to;
+      if (end.isAfter(historicalTo)) {
+        end = historicalTo;
       }
-      out.addAll(fetch(providerKey, unit, start, end));
+      out.addAll(
+          fetch(
+              providerKey,
+              "/v3/historical-candle/{key}/{unit}/{interval}/{to}/{from}",
+              providerKey,
+              unit.unit(),
+              unit.interval(),
+              end,
+              start));
       start = end.plusDays(1);
+    }
+    if (includesToday) {
+      fetch(providerKey, "/v3/historical-candle/intraday/{key}/days/1", providerKey).stream()
+          .filter(c -> c.tradingDate().equals(today))
+          .forEach(out::add);
     }
     return interval == Interval.DAY ? atIstMidnight(out) : out;
   }
@@ -118,16 +179,29 @@ final class UpstoxCandleProvider implements MarketDataProvider {
         .toList();
   }
 
-  private List<Candle> fetch(String key, Unit unit, LocalDate from, LocalDate to) {
+  private List<Candle> fetch(String key, String uriTemplate, Object... uriVariables) {
+    for (int attempt = 0; ; attempt++) {
+      try {
+        return fetchOnce(key, uriTemplate, uriVariables);
+      } catch (ProviderException.RateLimited e) {
+        java.time.Duration pause = pauseFor(e);
+        if (attempt >= RATE_LIMIT_RETRIES || pause.compareTo(MAX_RATE_LIMIT_PAUSE) > 0) {
+          throw e;
+        }
+        try {
+          sleeper.sleep(pause);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw e;
+        }
+      }
+    }
+  }
+
+  private List<Candle> fetchOnce(String key, String uriTemplate, Object... uriVariables) {
     limiter.acquire();
     return http.get()
-        .uri(
-            "/v3/historical-candle/{key}/{unit}/{interval}/{to}/{from}",
-            key,
-            unit.unit(),
-            unit.interval(),
-            to,
-            from)
+        .uri(uriTemplate, uriVariables)
         .accept(MediaType.APPLICATION_JSON)
         .header("Authorization", "Bearer " + token)
         .exchange((request, response) -> {
@@ -139,7 +213,15 @@ final class UpstoxCandleProvider implements MarketDataProvider {
                 "HTTP " + status.value() + ": the Analytics token is missing, expired or revoked");
           }
           if (status.value() == 429) {
-            throw new ProviderException.RateLimited(NAME, "HTTP 429 for " + key);
+            var after = retryAfter(response.getHeaders().getFirst("Retry-After"));
+            throw new ProviderException.RateLimited(
+                NAME,
+                "HTTP 429 for "
+                    + key
+                    + (after == null ? "" : ", retry after " + after.toSeconds() + " s")
+                    + ": "
+                    + UpstoxCandleParser.abbreviate(body),
+                after);
           }
           if (status.isError()) {
             throw new ProviderException.BadResponse(

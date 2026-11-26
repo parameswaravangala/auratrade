@@ -21,7 +21,7 @@ import java.util.Optional;
  */
 public class EodCandleJob implements ScheduledJob {
 
-  static final String NAME = "eod-candles";
+  public static final String NAME = "eod-candles";
   private static final int MAX_LISTED_FAILURES = 20;
 
   /**
@@ -29,7 +29,8 @@ public class EodCandleJob implements ScheduledJob {
    * @param maxCatchUp most trading days one run catches up; older gaps need a backfill
    * @param series share series to load, for example EQ
    * @param maxInstruments 0 for all, or a limit for short development runs
-   * @param minCoverage share of instruments that must have a candle for the last day (0.5 = half)
+   * @param minCoverage share of instruments that must have a candle for the last day (default 0.9;
+   *     a run that crossed midnight IST on 2026-11-26 loaded 61% and passed the old 0.5)
    * @param benchmarks indices loaded alongside the shares, for example NIFTY (relative strength)
    */
   public record Settings(
@@ -70,18 +71,34 @@ public class EodCandleJob implements ScheduledJob {
 
   @Override
   public JobOutcome execute(JobWindow window) {
+    // Re-fetch the previous trading day too: a same-day bar can be provisional (Upstox serves today
+    // from its intraday endpoint), and the next evening replaces it with the final historical bar.
+    LocalDate fetchFrom = calendar.previousTradingDay(window.from());
     List<CandleRepository.Target> universe =
         ingestion.universe(settings.series(), settings.maxInstruments());
     if (universe.isEmpty()) {
       throw new IllegalStateException(
           "no active shares with a " + ingestion.providerName() + " key; load instruments first");
     }
+    // Benchmarks first and required: screens such as relative strength cannot run without them,
+    // and a long run reaching them last could lose the day (backlog B-029). Fails the run.
+    for (String index : settings.benchmarks()) {
+      var result = ingestion.ingestIndex(index, fetchFrom, window.to());
+      if (result.hasErrors()) {
+        throw new IllegalStateException(
+            "benchmark " + index + " failed validation for " + window.to());
+      }
+      if (!window.to().equals(result.newestDate())) {
+        throw new IllegalStateException(
+            "benchmark " + index + " has no candle for " + window.to() + " yet");
+      }
+    }
     int ok = 0;
     int withLastDay = 0;
     List<String> failed = new ArrayList<>();
     for (CandleRepository.Target share : universe) {
       try {
-        var result = ingestion.ingest(share, Interval.DAY, window.from(), window.to());
+        var result = ingestion.ingest(share, Interval.DAY, fetchFrom, window.to());
         if (result.hasErrors()) {
           failed.add(share.tradingSymbol() + " (validation)");
           continue;
@@ -94,17 +111,6 @@ public class EodCandleJob implements ScheduledJob {
         throw e;
       } catch (RuntimeException e) {
         failed.add(share.tradingSymbol() + " (" + e.getClass().getSimpleName() + ")");
-      }
-    }
-    for (String index : settings.benchmarks()) {
-      try {
-        if (ingestion.ingestIndex(index, window.from(), window.to()).hasErrors()) {
-          failed.add(index + " (benchmark validation)");
-        }
-      } catch (ProviderException.Auth | ProviderException.RateLimited e) {
-        throw e;
-      } catch (RuntimeException e) {
-        failed.add(index + " (benchmark " + e.getClass().getSimpleName() + ")");
       }
     }
     double coverage = (double) withLastDay / universe.size();

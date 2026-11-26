@@ -45,8 +45,10 @@ class UpstoxContractIT {
             RestClient.builder().baseUrl("https://api.upstox.com").build(),
             token,
             WindowRateLimiter.realTime(
-                List.of(new Limit(5, Duration.ofSeconds(1))), Clock.systemUTC()));
-    LocalDate to = LocalDate.now(MarketZones.IST).minusDays(1);
+                List.of(new Limit(5, Duration.ofSeconds(1))), Clock.systemUTC()),
+            Clock.systemUTC());
+    // Up to today: the historical endpoint serves earlier days, the intraday endpoint today.
+    LocalDate to = LocalDate.now(MarketZones.IST);
     List<Candle> candles =
         provider.candles(share.providerKey(), Interval.DAY, to.minusDays(14), to);
 
