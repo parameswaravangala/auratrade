@@ -29,6 +29,24 @@ without checking each row against that page.
 4. Check each date's weekday against the page, run `./mvnw verify`, open a PR, deploy.
 5. Confirm the startup log no longer shows a `CalendarAlerts` warning for that year.
 
+## Verify a past year against NSE's archive
+
+Annual lists miss later changes: election holidays, declared public holidays, and special live
+sessions on Saturdays or Sundays (disaster-recovery drills, Budget day). In 2024 alone there were
+five. NSE publishes a Capital Market bhavcopy for every day it trades, so the archive is official
+evidence of what actually happened (available from 2024-01-01).
+
+1. In Git Bash: `scripts/calendar/probe-nse-trading-days.sh 2027-01-01 2027-12-31 days.csv`
+   (one request per date, about 2 minutes per year).
+2. `grep -hE "^(HOLIDAY|SPECIAL)," src/main/resources/calendar/nse-calendar.csv > cal.csv`, then
+   `awk -F, -f scripts/calendar/reconcile.awk cal.csv days.csv`.
+3. Each line printed is a disagreement. Find the NSE circular for it, add the row with the
+   circular reference, and re-run until nothing is printed. Update the day counts in
+   `NseCalendarFileTest`.
+
+Years before 2024 are in `docs/calendar/nse-holidays-draft.csv` (annual circulars only) and are
+not loaded until reconciled against another official source, for example index history.
+
 ## Urgent change (holiday announced at short notice)
 
 NSE can declare a holiday by circular a few days ahead (for example the 15 Jan 2026 election
