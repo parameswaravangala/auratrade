@@ -1,24 +1,30 @@
 package com.auratrade.marketdata;
 
+import com.auratrade.platform.ratelimit.WindowRateLimiter;
 import com.auratrade.platform.time.MarketZones;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.client.RestClient;
 
 @Configuration(proxyBeanMethods = false)
 class MarketDataConfig {
@@ -94,5 +100,65 @@ class MarketDataConfig {
         new TransactionTemplate(transactions),
         clock,
         new InstrumentLoader.Rules("NSE", minRows, maxShrink, maxRejected));
+  }
+
+  /**
+   * Upstox candles. The token comes from the environment (UPSTOX_ANALYTICS_TOKEN) and may be
+   * absent: the app still starts, and candle calls fail with an auth error naming the variable. The
+   * limiter stays at 80% of the published limits for this API group (50/s, 500/min, 2000/30 min).
+   */
+  @Bean
+  UpstoxCandleProvider upstoxCandleProvider(
+      @Value("${auratrade.marketdata.upstox.api-base:https://api.upstox.com}") String apiBase,
+      @Value("${UPSTOX_ANALYTICS_TOKEN:}") String token,
+      Clock clock) {
+    Duration timeout = Duration.ofSeconds(30);
+    var factory =
+        new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(timeout).build());
+    factory.setReadTimeout(timeout);
+    RestClient http =
+        RestClient.builder()
+            .baseUrl(apiBase)
+            .requestFactory(factory)
+            .defaultHeader("User-Agent", "auratrade")
+            .build();
+    WindowRateLimiter limiter =
+        WindowRateLimiter.realTime(
+            List.of(
+                new WindowRateLimiter.Limit(40, Duration.ofSeconds(1)),
+                new WindowRateLimiter.Limit(400, Duration.ofMinutes(1)),
+                new WindowRateLimiter.Limit(1600, Duration.ofMinutes(30))),
+            clock);
+    return new UpstoxCandleProvider(http, token, limiter);
+  }
+
+  /**
+   * The candle provider consumers use (ADR 0016), chosen by auratrade.marketdata.candles.provider.
+   * Development defaults to upstox; production must set it explicitly. An unknown name stops
+   * startup rather than falling back silently.
+   */
+  @Bean
+  MarketDataProvider candleProvider(
+      @Value("${auratrade.marketdata.candles.provider}") String name, UpstoxCandleProvider upstox) {
+    return switch (name.trim().toUpperCase(Locale.ROOT)) {
+      case UpstoxCandleProvider.NAME -> upstox;
+      default ->
+          throw new IllegalStateException(
+              "Unknown auratrade.marketdata.candles.provider '" + name + "'; supported: upstox");
+    };
+  }
+
+  @Bean
+  CandleRepository candleRepository(JdbcClient jdbc, NamedParameterJdbcTemplate batch) {
+    return new CandleRepository(jdbc, batch);
+  }
+
+  @Bean
+  CandleIngestionService candleIngestionService(
+      MarketDataProvider candleProvider,
+      CandleRepository candles,
+      CandleValidator validator,
+      Clock clock) {
+    return new CandleIngestionService(candleProvider, candles, validator, clock);
   }
 }

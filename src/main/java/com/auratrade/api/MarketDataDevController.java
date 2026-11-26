@@ -1,11 +1,17 @@
 package com.auratrade.api;
 
+import com.auratrade.marketdata.CalendarNotCoveredException;
+import com.auratrade.marketdata.Candle;
+import com.auratrade.marketdata.CandleIngestionService;
 import com.auratrade.marketdata.InstrumentFileException;
 import com.auratrade.marketdata.InstrumentLoader;
 import com.auratrade.marketdata.InstrumentRepository;
 import com.auratrade.marketdata.InstrumentRepository.SeriesCount;
+import com.auratrade.marketdata.Interval;
+import com.auratrade.marketdata.ProviderException;
 import com.auratrade.marketdata.Resolution;
 import com.auratrade.marketdata.SymbolResolverService;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
@@ -31,12 +37,55 @@ class MarketDataDevController {
   private final InstrumentLoader loader;
   private final InstrumentRepository instruments;
   private final SymbolResolverService resolver;
+  private final CandleIngestionService candles;
 
   MarketDataDevController(
-      InstrumentLoader loader, InstrumentRepository instruments, SymbolResolverService resolver) {
+      InstrumentLoader loader,
+      InstrumentRepository instruments,
+      SymbolResolverService resolver,
+      CandleIngestionService candles) {
     this.loader = loader;
     this.instruments = instruments;
     this.resolver = resolver;
+    this.candles = candles;
+  }
+
+  /**
+   * Fetches candles for one share from the configured provider, validates and stores them, for
+   * example ?symbol=MTNL&from=2026-11-02&to=2026-11-20. Stores nothing if validation finds errors.
+   */
+  @PostMapping("/candles/load")
+  CandleIngestionService.Result loadCandles(
+      @RequestParam String symbol,
+      @RequestParam(defaultValue = "DAY") Interval interval,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    return candles.ingest(symbol, interval, from, to);
+  }
+
+  /** Stored candles for one share from the configured provider. */
+  @GetMapping("/candles")
+  List<Candle> storedCandles(
+      @RequestParam String symbol,
+      @RequestParam(defaultValue = "DAY") Interval interval,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    return candles.stored(symbol, interval, from, to);
+  }
+
+  @ExceptionHandler(ProviderException.Auth.class)
+  ProblemDetail providerAuth(ProviderException.Auth e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+  }
+
+  @ExceptionHandler(ProviderException.class)
+  ProblemDetail providerFailed(ProviderException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, e.getMessage());
+  }
+
+  @ExceptionHandler(CalendarNotCoveredException.class)
+  ProblemDetail calendarNotCovered(CalendarNotCoveredException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, e.getMessage());
   }
 
   /** Downloads the instrument file from the configured feed, upserts it, rebuilds the resolver. */

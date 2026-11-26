@@ -1,0 +1,6 @@
+# Local development (SPRING_PROFILES_ACTIVE=dev). Reads the git-ignored .env file in the working
+# directory as properties, so secrets such as UPSTOX_ANALYTICS_TOKEN reach the app without being
+# exported in the shell. Production reads real environment variables instead.
+spring:
+  config:
+    import: optional:file:.env[.properties]

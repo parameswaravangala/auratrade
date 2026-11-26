@@ -56,3 +56,8 @@ auratrade:
         { preferred: LIGHT, floor: LIGHT, critical: false, dailyTokenCap: 100000 }
       ADHOC_CHAT:
         { preferred: HEAVY, floor: LIGHT, critical: false, dailyTokenCap: 300000 }
+  marketdata:
+    candles:
+      # Which provider consumers read candles from (ADR 0016). Development uses Upstox;
+      # production sets it explicitly (see application-prod.yml).
+      provider: upstox

@@ -24,7 +24,7 @@
     <jacoco.version>0.8.14</jacoco.version>
     <!-- Raise to 0.80 as real code lands (see docs/adr and the development plan quality gates). -->
     <jacoco.minimum.coverage>0.00</jacoco.minimum.coverage>
-    <excludedGroups>eval</excludedGroups>
+    <excludedGroups>eval,contract</excludedGroups>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -183,6 +183,14 @@
       <id>eval</id>
       <properties>
         <groups>eval</groups>
+        <excludedGroups>none</excludedGroups>
+      </properties>
+    </profile>
+    <profile>
+      <!-- Live provider contract tests: ./mvnw verify -Pcontract (needs provider credentials in the environment) -->
+      <id>contract</id>
+      <properties>
+        <groups>contract</groups>
         <excludedGroups>none</excludedGroups>
       </properties>
     </profile>
