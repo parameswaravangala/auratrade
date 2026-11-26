@@ -4,8 +4,10 @@ import com.auratrade.platform.time.MarketZones;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +15,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Configuration(proxyBeanMethods = false)
 class MarketDataConfig {
@@ -44,5 +50,31 @@ class MarketDataConfig {
   @Bean
   CandleValidator candleValidator(TradingCalendar calendar) {
     return new CandleValidator(calendar, QualityRules.defaults());
+  }
+
+  @Bean
+  InstrumentRepository instrumentRepository(JdbcClient jdbc, NamedParameterJdbcTemplate batch) {
+    return new InstrumentRepository(jdbc, batch);
+  }
+
+  /**
+   * Instrument master loader. Defaults: the Kite NSE file, at least 5,000 rows, and at most a 10%
+   * drop since the previous load. Override with auratrade.marketdata.instruments.*.
+   */
+  @Bean
+  InstrumentLoader instrumentLoader(
+      @Value("${auratrade.marketdata.instruments.url:https://api.kite.trade/instruments/NSE}")
+          URI url,
+      @Value("${auratrade.marketdata.instruments.min-rows:5000}") int minRows,
+      @Value("${auratrade.marketdata.instruments.max-shrink:0.10}") double maxShrink,
+      InstrumentRepository repository,
+      PlatformTransactionManager transactions,
+      Clock clock) {
+    return new InstrumentLoader(
+        new KiteInstrumentSource(url, Duration.ofSeconds(30)),
+        repository,
+        new TransactionTemplate(transactions),
+        clock,
+        new InstrumentLoader.Rules("NSE", minRows, maxShrink));
   }
 }
