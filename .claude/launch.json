@@ -12,6 +12,17 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["--prefix", "ui", "vite", "docs/ui", "--port", "5199", "--strictPort"],
       "port": 5199
+    },
+    {
+      "name": "auratrade-dev",
+      "runtimeExecutable": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-Command",
+        "$env:Path = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0;C:\\Windows\\System32;' + $env:Path; $env:SPRING_PROFILES_ACTIVE = 'dev'; .\\mvnw.cmd spring-boot:run"
+      ],
+      "port": 8080,
+      "autoPort": false
     }
   ]
 }
