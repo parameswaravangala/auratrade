@@ -1,0 +1,12 @@
+# NSE equity trading calendar. Fail closed: a year is unknown until it has a COVERS row.
+#
+# Fill this in from the official NSE trading holiday list (NSE website, Trading Holidays, or the
+# exchange circular for the year). Do not copy it from memory, a blog or an AI assistant.
+#
+# Rows (one per line):
+#   COVERS,2026                         declares that the year is complete
+#   HOLIDAY,2026-01-26,Republic Day     a weekday on which the exchange is closed
+#   SPECIAL,2026-11-08,Muhurat session  a day that trades although it is normally closed
+#
+# Weekends are closed automatically. Add the COVERS row only after ALL holidays and special
+# sessions of that year are entered; a partly filled year is worse than an empty one.
