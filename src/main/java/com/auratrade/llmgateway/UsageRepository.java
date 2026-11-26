@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -69,5 +70,28 @@ class UsageRepository implements UsageRecorder {
         .param("from", from)
         .query(Long.class)
         .single();
+  }
+
+  List<SpendRow> spendByAgentTierSince(OffsetDateTime from) {
+    return jdbc.sql(
+            """
+            select agent, tier, count(*) as runs,
+                   coalesce(sum(input_tokens + output_tokens
+                                + coalesce(cache_read, 0) + coalesce(cache_write, 0)), 0) as tokens,
+                   coalesce(sum(cost_usd), 0) as cost
+            from llm_usage
+            where ts >= :from
+            group by agent, tier
+            order by cost desc, agent
+            """)
+        .param("from", from)
+        .query((rs, row) ->
+            new SpendRow(
+                rs.getString("agent"),
+                rs.getString("tier"),
+                rs.getLong("runs"),
+                rs.getLong("tokens"),
+                rs.getBigDecimal("cost")))
+        .list();
   }
 }

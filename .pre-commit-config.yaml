@@ -1,7 +1,22 @@
-# Install: pip install pre-commit && pre-commit install
-# Then run `pre-commit autoupdate` to move rev to the latest release.
+default_install_hook_types: [pre-commit, pre-push]
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.0
     hooks:
       - id: gitleaks
+  - repo: local
+    hooks:
+      - id: spotless-apply
+        name: format (spotless:apply)
+        entry: bash -c './mvnw -q -B spotless:apply'
+        language: system
+        pass_filenames: false
+        files: \.java$
+        stages: [pre-commit]
+      - id: maven-verify
+        name: build and test (verify)
+        entry: bash -c './mvnw -B -q spotless:check verify'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
