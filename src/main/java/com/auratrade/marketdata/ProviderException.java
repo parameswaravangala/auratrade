@@ -28,8 +28,22 @@ public class ProviderException extends RuntimeException {
 
   /** The provider throttled us despite the client-side limiter. */
   public static class RateLimited extends ProviderException {
+    private final java.time.Duration retryAfter;
+
     public RateLimited(String provider, String message) {
+      this(provider, message, null);
+    }
+
+    /**
+     * @param retryAfter how long the provider asked us to wait (a Retry-After header), or null
+     */
+    public RateLimited(String provider, String message, java.time.Duration retryAfter) {
       super(provider, message);
+      this.retryAfter = retryAfter;
+    }
+
+    public java.util.Optional<java.time.Duration> retryAfter() {
+      return java.util.Optional.ofNullable(retryAfter);
     }
   }
 

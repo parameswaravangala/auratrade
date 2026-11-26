@@ -125,8 +125,13 @@ class MarketDataConfig {
     WindowRateLimiter limiter =
         WindowRateLimiter.realTime(
             List.of(
-                new WindowRateLimiter.Limit(40, Duration.ofSeconds(1)),
-                new WindowRateLimiter.Limit(400, Duration.ofMinutes(1)),
+                // Published: 50 per second, 500 per minute, 2,000 per 30 minutes. Second and minute
+                // are kept far lower because Cloudflare in front of the API throttled bursts on
+                // 2026-11-26 (error 1015, threshold unpublished). The 30-minute limit sets the
+                // pace of long runs anyway (about 53 calls a minute), so this costs no time; it
+                // only spreads calls evenly instead of spending the allowance in four minutes.
+                new WindowRateLimiter.Limit(5, Duration.ofSeconds(1)),
+                new WindowRateLimiter.Limit(60, Duration.ofMinutes(1)),
                 new WindowRateLimiter.Limit(1600, Duration.ofMinutes(30))),
             clock);
     return new UpstoxCandleProvider(http, token, limiter, clock);

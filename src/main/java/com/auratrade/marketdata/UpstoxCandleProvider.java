@@ -52,13 +52,31 @@ final class UpstoxCandleProvider implements MarketDataProvider {
 
   /**
    * A 429 is retried after a pause, because one rejected call should not end a run of thousands.
-   * Upstox's published limits (rate-limiting page, read 2026-11-26) are per second, per minute and
-   * per 30 minutes; our limiter stays at 80% of them, yet Upstox answered 429 on 2026-11-26, so its
-   * counting differs from ours in some way we cannot see. One minute clears its per-minute window.
+   * Seen 2026-11-26: besides Upstox's published API limits, Cloudflare in front of api.upstox.com
+   * answers 429 "error code: 1015" with a Retry-After header (151 s), at a threshold that is not
+   * published. The pause is the Retry-After plus a margin, at least one minute; a provider asking
+   * for longer than {@link #MAX_RATE_LIMIT_PAUSE} is not waited for.
    */
   static final java.time.Duration RATE_LIMIT_PAUSE = java.time.Duration.ofMinutes(1);
 
+  static final java.time.Duration RETRY_AFTER_MARGIN = java.time.Duration.ofSeconds(5);
+  static final java.time.Duration MAX_RATE_LIMIT_PAUSE = java.time.Duration.ofMinutes(10);
   static final int RATE_LIMIT_RETRIES = 3;
+
+  static java.time.Duration pauseFor(ProviderException.RateLimited e) {
+    return e.retryAfter()
+        .map(d -> d.plus(RETRY_AFTER_MARGIN))
+        .filter(d -> d.compareTo(RATE_LIMIT_PAUSE) > 0)
+        .orElse(RATE_LIMIT_PAUSE);
+  }
+
+  /** Retry-After in delta-seconds; an HTTP date or anything else is ignored. */
+  static java.time.Duration retryAfter(String header) {
+    if (header == null || !header.trim().matches("\\d{1,6}")) {
+      return null;
+    }
+    return java.time.Duration.ofSeconds(Long.parseLong(header.trim()));
+  }
 
   /**
    * @param http a RestClient whose base URL is the Upstox API root, for example
@@ -166,11 +184,12 @@ final class UpstoxCandleProvider implements MarketDataProvider {
       try {
         return fetchOnce(key, uriTemplate, uriVariables);
       } catch (ProviderException.RateLimited e) {
-        if (attempt >= RATE_LIMIT_RETRIES) {
+        java.time.Duration pause = pauseFor(e);
+        if (attempt >= RATE_LIMIT_RETRIES || pause.compareTo(MAX_RATE_LIMIT_PAUSE) > 0) {
           throw e;
         }
         try {
-          sleeper.sleep(RATE_LIMIT_PAUSE);
+          sleeper.sleep(pause);
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
           throw e;
@@ -194,7 +213,15 @@ final class UpstoxCandleProvider implements MarketDataProvider {
                 "HTTP " + status.value() + ": the Analytics token is missing, expired or revoked");
           }
           if (status.value() == 429) {
-            throw new ProviderException.RateLimited(NAME, "HTTP 429 for " + key);
+            var after = retryAfter(response.getHeaders().getFirst("Retry-After"));
+            throw new ProviderException.RateLimited(
+                NAME,
+                "HTTP 429 for "
+                    + key
+                    + (after == null ? "" : ", retry after " + after.toSeconds() + " s")
+                    + ": "
+                    + UpstoxCandleParser.abbreviate(body),
+                after);
           }
           if (status.isError()) {
             throw new ProviderException.BadResponse(

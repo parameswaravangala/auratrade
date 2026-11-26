@@ -78,6 +78,38 @@ class UpstoxCandleProviderTest {
   }
 
   @Test
+  void aRetryAfterHeaderSetsThePause() {
+    String day = url("days", 1, "2026-11-20", "2026-11-20");
+    server
+        .expect(requestTo(day))
+        .andRespond(
+            withStatus(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", "151")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body("error code: 1015"));
+    server.expect(requestTo(day)).andRespond(withSuccess(ONE_DAY, MediaType.APPLICATION_JSON));
+
+    provider.candles(
+        KEY, Interval.DAY, LocalDate.parse("2026-11-20"), LocalDate.parse("2026-11-20"));
+
+    assertThat(pauses).containsExactly(Duration.ofSeconds(156));
+  }
+
+  @Test
+  void aRetryAfterBeyondTheMaximumIsNotWaitedFor() {
+    server
+        .expect(requestTo(url("days", 1, "2026-11-20", "2026-11-20")))
+        .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", "3600"));
+
+    assertThatThrownBy(() ->
+            provider.candles(
+                KEY, Interval.DAY, LocalDate.parse("2026-11-20"), LocalDate.parse("2026-11-20")))
+        .isInstanceOf(ProviderException.RateLimited.class)
+        .hasMessageContaining("retry after 3600 s");
+    assertThat(pauses).isEmpty();
+  }
+
+  @Test
   void aRateLimitThatPersistsIsRaisedAfterTheRetries() {
     server
         .expect(
