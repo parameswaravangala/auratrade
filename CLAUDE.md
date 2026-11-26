@@ -39,7 +39,7 @@ Java 21 (move to 25 LTS later), Spring Boot 4.1.x, Spring AI 2.0.x (Ollama start
 ## Current state (update this section as work lands)
 - Sprint 0 done: skeleton, CI, quality gates.
 - Sprint 1 done: LLM gateway (tiers, budget resolver, fallback, usage log, spend views, budget alerts), Ollama adapter, eval harness with a 21-case triage golden set. Eval findings: JSON mode with temperature 0 removed format failures; prompt v2 improved relevance; a 3B model invents tickers; injection case n21 fails every run; sentiment labels on mixed news are ambiguous.
-- Sprint 2 (market data) in progress. Slice 1 is a zip to apply and verify: `TradingCalendar` (fail closed), `Candle`, `Interval`, `CandleValidator` with ERROR and WARNING rules, synthetic candle generator for tests, ADR 0012. The calendar file `src/main/resources/calendar/nse-calendar.csv` is an empty template that I must fill from the official NSE holiday list.
+- Sprint 2 (market data) in progress. Slice 1 merged (PR #18): `TradingCalendar` (fail closed), `Candle`, `Interval`, `CandleValidator` with ERROR and WARNING rules, synthetic candle generator for tests, ADR 0012. The calendar `src/main/resources/calendar/nse-calendar.csv` covers 2026 (from the official NSE Equities trading-holiday page); 2027 is not covered yet. `CalendarCoverageCheck` warns at startup (logger `CalendarAlerts`) from 1 December if next year is missing. Runbook: `docs/runbooks/trading-calendar.md`.
 - Next Sprint 2 slices: Flyway V3 tables (instrument, candle); instrument master loader (Kite instruments CSV, reportedly no auth, verify); company-name to symbol resolver (backlog B-001); importer for locally downloaded end-of-day files; replay fixtures; staleness alert; client-side rate limiter.
 - Backlog: `docs/backlog.md`.
 
