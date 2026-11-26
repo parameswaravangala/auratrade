@@ -1,7 +1,7 @@
 import { NAV } from "@/app/nav";
 import { Panel } from "@/components/Panel";
 
-type Path = "/research" | "/playbooks" | "/approvals" | "/portfolio" | "/agents" | "/calendar";
+type Path = "/research" | "/approvals" | "/portfolio" | "/agents" | "/calendar";
 
 const PLANS: Record<Path, { what: string; shows: string[]; needs: string[] }> = {
   "/research": {
@@ -12,15 +12,6 @@ const PLANS: Record<Path, { what: string; shows: string[]; needs: string[] }> = 
       "thesis draft with evidence and confidence",
     ],
     needs: ["news ingestion", "NEWS_TRIAGE and STOCK_ANALYSIS agents", "GET /api/v1/research/*"],
-  },
-  "/playbooks": {
-    what: "Playbook rules as connected blocks, run in Java, with backtests: equity curve, drawdown and monthly returns.",
-    shows: [
-      "universe, entry, size, exit and guard blocks",
-      "backtest stats and equity versus benchmark",
-      "underwater chart and monthly heatmap",
-    ],
-    needs: ["playbook model and backtester in Java", "GET /api/v1/playbooks, POST /api/v1/backtests"],
   },
   "/approvals": {
     what: "Every paper order waits here for your decision: signal, sizing and risk review are shown first. Nothing reaches a broker (ADR 0005).",

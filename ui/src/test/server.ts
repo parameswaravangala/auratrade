@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { RUNS, SERIES, SHARE, SPEND } from "./fixtures";
+import { PORTFOLIO, RUNS, SCREENS, SERIES, SHARE, SHORTLIST, SPEND, SWEEP } from "./fixtures";
 
 /** A fake backend for component tests (like WireMock). Tests override handlers with server.use(). */
 export const handlers = [
@@ -22,6 +22,12 @@ export const handlers = [
     return HttpResponse.json({ reason: `no NSE share matches '${name}'` });
   }),
   http.get("*/dev/marketdata/candles", () => HttpResponse.json([])),
+  http.get("*/dev/screener/screens", () => HttpResponse.json(SCREENS)),
+  http.get("*/dev/screener/:name", ({ params }) =>
+    HttpResponse.json({ ...SHORTLIST, screen: String(params.name) }),
+  ),
+  http.get("*/dev/backtest/portfolio", () => HttpResponse.json(PORTFOLIO)),
+  http.get("*/dev/backtest/sweep", () => HttpResponse.json(SWEEP)),
 ];
 
 export const server = setupServer(...handlers);

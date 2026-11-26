@@ -2,7 +2,7 @@
  * Every backend call the UI makes, in one place. Today these hit the dev-profile endpoints; when the
  * backend adds `/api/v1` (ADR 0019) only this file changes.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { getJson } from "./client";
 import {
   Candles,
@@ -11,9 +11,13 @@ import {
   JobRuns,
   JobTriggered,
   LlmResult,
+  PortfolioReport,
   Resolution,
+  ScreenInfos,
+  ScreenResult,
   SeriesCounts,
   SpendReport,
+  SweepReport,
 } from "./schemas";
 
 export const JOBS = ["instrument-master", "eod-candles"] as const;
@@ -26,6 +30,10 @@ export const keys = {
   spend: ["llm", "spend"] as const,
   resolve: (name: string) => ["resolve", name] as const,
   candles: (symbol: string, from: string, to: string) => ["candles", symbol, from, to] as const,
+  screens: ["screener", "screens"] as const,
+  shortlist: (screen: string) => ["screener", "run", screen] as const,
+  portfolio: (p: PortfolioParams) => ["backtest", "portfolio", p] as const,
+  sweep: (p: SweepParams) => ["backtest", "sweep", p] as const,
 };
 
 export function useHealth() {
@@ -122,3 +130,102 @@ export function useAsk() {
       }),
   });
 }
+
+// ---- Playbook lab: screener and backtests (all computed in Java) ----
+
+export function useScreens() {
+  return useQuery({
+    queryKey: keys.screens,
+    queryFn: ({ signal }) => getJson("/dev/screener/screens", ScreenInfos, { signal }),
+    staleTime: Infinity,
+  });
+}
+
+/** Today's shortlist for one screen, on the newest stored data. Takes several seconds. */
+export function useShortlist(screen: string | undefined, limit = 10) {
+  return useQuery({
+    queryKey: keys.shortlist(screen ?? ""),
+    queryFn: ({ signal }) =>
+      getJson(`/dev/screener/${encodeURIComponent(screen ?? "")}?limit=${limit}`, ScreenResult, { signal }),
+    enabled: !!screen,
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+}
+
+/** Settings for one portfolio simulation; names match the backend's request parameters. */
+export type PortfolioParams = {
+  screen: string;
+  from: string;
+  to: string;
+  atrMultiple: number;
+  maxHold: number;
+  regime: boolean;
+  riskPct: number;
+  maxPositions: number;
+  costs: boolean;
+};
+
+export type SweepParams = { screen: string; from: string; split: string; to: string };
+
+const query = (p: Record<string, string | number | boolean>) =>
+  new URLSearchParams(Object.entries(p).map(([k, v]) => [k, String(v)])).toString();
+
+/**
+ * Backtests take one to several minutes, so they run only when asked (`params` set) and the result
+ * is kept for these exact settings. No abort signal: leaving the screen must not throw away a run.
+ */
+const LONG_RUN = { staleTime: Infinity, gcTime: 60 * 60_000, retry: false } as const;
+
+export function usePortfolio(params: PortfolioParams | null) {
+  return useQuery({
+    queryKey: keys.portfolio(params ?? EMPTY_PORTFOLIO),
+    queryFn: () => getJson(`/dev/backtest/portfolio?${query(params ?? EMPTY_PORTFOLIO)}`, PortfolioReport),
+    enabled: params !== null,
+    ...LONG_RUN,
+  });
+}
+
+export function useSweep(params: SweepParams | null) {
+  return useQuery({
+    queryKey: keys.sweep(params ?? EMPTY_SWEEP),
+    queryFn: () => getJson(`/dev/backtest/sweep?${query(params ?? EMPTY_SWEEP)}`, SweepReport),
+    enabled: params !== null,
+    ...LONG_RUN,
+  });
+}
+
+/**
+ * The settings of the newest backtest of `kind` for `screen` still in the cache, running or done, so
+ * a result survives leaving the page and coming back (for example to open a share in the dossier).
+ */
+export function lastRun<K extends "portfolio" | "sweep">(
+  qc: QueryClient,
+  kind: K,
+  screen: string,
+): (K extends "portfolio" ? PortfolioParams : SweepParams) | null {
+  type P = K extends "portfolio" ? PortfolioParams : SweepParams;
+  let best: { at: number; params: P } | null = null;
+  for (const q of qc.getQueryCache().findAll({ queryKey: ["backtest", kind] })) {
+    const params = q.queryKey[2] as P | undefined;
+    if (params?.screen !== screen) continue;
+    const s = q.state;
+    const at =
+      s.fetchStatus === "fetching" ? Number.MAX_SAFE_INTEGER : Math.max(s.dataUpdatedAt, s.errorUpdatedAt);
+    if (at > 0 && (!best || at > best.at)) best = { at, params };
+  }
+  return best?.params ?? null;
+}
+
+const EMPTY_PORTFOLIO: PortfolioParams = {
+  screen: "",
+  from: "",
+  to: "",
+  atrMultiple: 0,
+  maxHold: 0,
+  regime: false,
+  riskPct: 0,
+  maxPositions: 0,
+  costs: true,
+};
+const EMPTY_SWEEP: SweepParams = { screen: "", from: "", split: "", to: "" };
