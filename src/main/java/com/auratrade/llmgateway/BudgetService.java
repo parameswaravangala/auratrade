@@ -1,10 +1,7 @@
 package com.auratrade.llmgateway;
 
-import com.auratrade.platform.time.MarketZones;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 
 /**
@@ -29,12 +26,8 @@ public class BudgetService implements TierResolver {
 
   @Override
   public Tier resolveTier(AgentType agent) {
-    ZonedDateTime now = ZonedDateTime.now(clock.withZone(MarketZones.IST));
-    ZonedDateTime dayStart = now.truncatedTo(ChronoUnit.DAYS);
-    ZonedDateTime monthStart = dayStart.withDayOfMonth(1);
-
-    BigDecimal monthSpend = usage.spendSince(monthStart.toOffsetDateTime());
-    long todayTokens = usage.tokensSince(agent, dayStart.toOffsetDateTime());
+    BigDecimal monthSpend = usage.spendSince(Periods.monthStart(clock));
+    long todayTokens = usage.tokensSince(agent, Periods.dayStart(clock));
     return resolver.resolve(agent, properties.policy(agent), monthSpend, todayTokens);
   }
 }
