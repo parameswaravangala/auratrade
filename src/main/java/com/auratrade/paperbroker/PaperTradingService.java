@@ -10,7 +10,6 @@ import com.auratrade.marketdata.TradingCalendar;
 import com.auratrade.paperbroker.PaperRepository.Account;
 import com.auratrade.paperbroker.PaperRepository.Order;
 import com.auratrade.paperbroker.PaperRepository.Position;
-import com.auratrade.platform.time.MarketZones;
 import com.auratrade.screener.Screen;
 import com.auratrade.screener.ScreenerService;
 import com.auratrade.screener.indicators.Indicators;
@@ -19,7 +18,6 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,7 +47,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class PaperTradingService {
 
   private static final Logger log = LoggerFactory.getLogger(PaperTradingService.class);
-  private static final LocalTime DECISION_DEADLINE = LocalTime.of(9, 15);
   private static final int ATR_PERIOD = 14;
   private static final int REGIME_AVERAGE = 200;
   private static final int HISTORY = 260;
@@ -123,21 +120,77 @@ public class PaperTradingService {
    * @throws IllegalStateException if the window has closed or the order is not PROPOSED
    */
   public Order decide(long orderId, boolean approve, String by, String note) {
+    return decide(orderId, approve, by, note, null, null);
+  }
+
+  /**
+   * As {@link #decide(long, boolean, String, String)}, approving with edits recorded next to the
+   * proposal.
+   *
+   * @param quantity a BUY may be approved for 1 up to the proposed quantity, never more, so the
+   *     risk sizing is an upper bound; a SELL always closes the whole position; null keeps it
+   * @param limitPrice the worst acceptable fill: at most this for a BUY, at least this for a SELL;
+   *     if the open with slippage is beyond it, the order is UNFILLED with the reason; null for
+   *     none
+   */
+  public Order decide(
+      long orderId, boolean approve, String by, String note, Long quantity, BigDecimal limitPrice) {
     Order o =
         repo.order(orderId).orElseThrow(() -> new IllegalArgumentException("no order " + orderId));
-    Instant deadline = o.fillDate().atTime(DECISION_DEADLINE).atZone(MarketZones.IST).toInstant();
     Instant now = clock.instant();
-    if (!now.isBefore(deadline)) {
+    if (!now.isBefore(o.decideBy())) {
       throw new IllegalStateException(
           "decision window closed at " + o.fillDate() + " 09:15 IST; the order will expire");
     }
     if (by == null || by.isBlank()) {
       throw new IllegalArgumentException("say who decided");
     }
-    if (!repo.decide(orderId, "PROPOSED", approve ? "APPROVED" : "REJECTED", now, by, note)) {
+    if (!approve && (quantity != null || limitPrice != null)) {
+      throw new IllegalArgumentException("a rejection takes no quantity or limit price");
+    }
+    if (quantity != null) {
+      if (!o.side().equals("BUY")) {
+        throw new IllegalArgumentException("a SELL closes the whole position; quantity is fixed");
+      }
+      if (quantity < 1 || quantity > o.quantity()) {
+        throw new IllegalArgumentException(
+            "quantity must be 1 to " + o.quantity() + " (the proposed, risk-sized quantity)");
+      }
+    }
+    if (limitPrice != null && limitPrice.signum() <= 0) {
+      throw new IllegalArgumentException("limit price must be positive");
+    }
+    if (!repo.decide(
+        orderId,
+        "PROPOSED",
+        approve ? "APPROVED" : "REJECTED",
+        now,
+        by,
+        note,
+        quantity,
+        limitPrice)) {
       throw new IllegalStateException("order " + orderId + " is " + o.status() + ", not PROPOSED");
     }
     return repo.order(orderId).orElseThrow();
+  }
+
+  /** The outcome of one order in a bulk decision: the updated order, or why it was refused. */
+  public record Outcome(long orderId, boolean ok, Order order, String error) {}
+
+  /** Decides several orders the same way, each on its own: one refusal does not stop the others. */
+  public List<Outcome> decideAll(List<Long> orderIds, boolean approve, String by, String note) {
+    if (orderIds == null || orderIds.isEmpty()) {
+      throw new IllegalArgumentException("no orders given");
+    }
+    List<Outcome> out = new ArrayList<>();
+    for (Long id : new java.util.LinkedHashSet<>(orderIds)) {
+      try {
+        out.add(new Outcome(id, true, decide(id, approve, by, note), null));
+      } catch (IllegalArgumentException | IllegalStateException e) {
+        out.add(new Outcome(id, false, null, e.getMessage()));
+      }
+    }
+    return out;
   }
 
   // ---- daily processing
@@ -187,6 +240,11 @@ public class PaperTradingService {
         }
         BigDecimal price =
             bar.open().multiply(BigDecimal.ONE.subtract(slip)).setScale(4, RoundingMode.HALF_UP);
+        if (o.limitPrice() != null && price.compareTo(o.limitPrice()) < 0) {
+          repo.markUnfilled(o.id(), beyondLimit(price, o));
+          unfilled++;
+          continue;
+        }
         // Trade values are booked in paise, as on a contract note.
         BigDecimal proceeds =
             price.multiply(BigDecimal.valueOf(p.quantity())).setScale(2, RoundingMode.HALF_UP);
@@ -228,7 +286,12 @@ public class PaperTradingService {
         }
         BigDecimal price =
             bar.open().multiply(BigDecimal.ONE.add(slip)).setScale(4, RoundingMode.HALF_UP);
-        long qty = o.quantity();
+        if (o.limitPrice() != null && price.compareTo(o.limitPrice()) > 0) {
+          repo.markUnfilled(o.id(), beyondLimit(price, o));
+          unfilled++;
+          continue;
+        }
+        long qty = o.quantityToTrade();
         long affordable =
             cash.divide(price.multiply(new BigDecimal("1.01")), 0, RoundingMode.FLOOR).longValue();
         qty = Math.min(qty, affordable);
@@ -287,6 +350,7 @@ public class PaperTradingService {
                     + " reached the stop "
                     + p.stopPrice().toPlainString()
                 : "Held " + sessions + " sessions (limit " + a.maxHoldSessions() + ")",
+            bar.close(),
             clock.instant());
         exits++;
       }
@@ -367,6 +431,7 @@ public class PaperTradingService {
                   + " ("
                   + a.atrMultiple().toPlainString()
                   + " x ATR)",
+              estimate,
               clock.instant());
           entries++;
           slots--;
@@ -387,6 +452,14 @@ public class PaperTradingService {
   }
 
   // ---- helpers
+
+  private static String beyondLimit(BigDecimal price, Order o) {
+    return "open with slippage "
+        + price.toPlainString()
+        + (o.side().equals("BUY") ? " above" : " below")
+        + " the limit "
+        + o.limitPrice().toPlainString();
+  }
 
   private Map<Long, Series> load(String source, LocalDate d, Set<Long> ids) {
     Map<Long, Series> out = new HashMap<>();

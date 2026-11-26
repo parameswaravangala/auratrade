@@ -220,6 +220,82 @@ class PaperTradingServiceIT extends PostgresIntegrationTest {
     assertThat(repo.orders(acc.id(), "EXPIRED", 10)).hasSize(1);
   }
 
+  private PaperRepository.Order proposedBuy() {
+    var acc = account(at(ist(d, 20, 0)));
+    at(ist(d, 20, 15)).process(acc.id(), d);
+    return repo.orders(acc.id(), "PROPOSED", 10).get(0);
+  }
+
+  @Test
+  void aProposalCarriesItsReferencePriceAndDeadline() {
+    var buy = proposedBuy();
+
+    assertThat(buy.referencePrice()).isNotNull().isPositive();
+    assertThat(buy.decideBy()).isEqualTo(ist(n1, 9, 15));
+    assertThat(buy.approvedQuantity()).isNull();
+  }
+
+  @Test
+  void aBuyApprovedForFewerSharesFillsOnlyThose() {
+    var buy = proposedBuy();
+    long fewer = buy.quantity() / 2;
+
+    var approved = at(ist(n1, 8, 0)).decide(buy.id(), true, "param", "half size", fewer, null);
+    at(ist(n1, 20, 15)).process(buy.accountId(), n1);
+
+    assertThat(approved.approvedQuantity()).isEqualTo(fewer);
+    assertThat(approved.quantity()).isEqualTo(buy.quantity()); // the proposal is kept
+    assertThat(repo.positions(buy.accountId()).get(0).quantity()).isEqualTo(fewer);
+  }
+
+  @Test
+  void aBuyCannotBeApprovedForMoreThanProposedNorASellResized() {
+    var buy = proposedBuy();
+    var paper = at(ist(n1, 8, 0));
+
+    assertThatThrownBy(() -> paper.decide(buy.id(), true, "param", null, buy.quantity() + 1, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("1 to " + buy.quantity());
+    assertThatThrownBy(() -> paper.decide(buy.id(), false, "param", null, 1L, null))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThat(repo.order(buy.id()).orElseThrow().status()).isEqualTo("PROPOSED");
+  }
+
+  @Test
+  void aBuyWhoseOpenIsAboveTheLimitIsUnfilled() {
+    var buy = proposedBuy(); // the next open is 105
+    at(ist(n1, 8, 0)).decide(buy.id(), true, "param", null, null, new BigDecimal("104.50"));
+
+    var r = at(ist(n1, 20, 15)).process(buy.accountId(), n1);
+
+    assertThat(r.unfilled()).isEqualTo(1);
+    assertThat(repo.positions(buy.accountId())).isEmpty();
+    var o = repo.order(buy.id()).orElseThrow();
+    assertThat(o.status()).isEqualTo("UNFILLED");
+    assertThat(o.statusNote()).contains("above the limit 104.5");
+  }
+
+  @Test
+  void aBuyWithinItsLimitFills() {
+    var buy = proposedBuy();
+    at(ist(n1, 8, 0)).decide(buy.id(), true, "param", null, null, new BigDecimal("106"));
+
+    assertThat(at(ist(n1, 20, 15)).process(buy.accountId(), n1).filled()).isEqualTo(1);
+  }
+
+  @Test
+  void aBulkDecisionReportsEachOrderOnItsOwn() {
+    var buy = proposedBuy();
+
+    var outcomes = at(ist(n1, 8, 0)).decideAll(List.of(buy.id(), 999_999L), true, "param", "batch");
+
+    assertThat(outcomes).hasSize(2);
+    assertThat(outcomes.get(0).ok()).isTrue();
+    assertThat(outcomes.get(0).order().status()).isEqualTo("APPROVED");
+    assertThat(outcomes.get(1).ok()).isFalse();
+    assertThat(outcomes.get(1).error()).contains("no order 999999");
+  }
+
   @Test
   void aRejectedProposalIsNeverFilled() {
     var acc = account(at(ist(d, 20, 0)));
