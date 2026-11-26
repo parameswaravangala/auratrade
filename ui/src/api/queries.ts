@@ -2,7 +2,7 @@
  * Every backend call the UI makes, in one place. Today these hit the dev-profile endpoints; when the
  * backend adds `/api/v1` (ADR 0019) only this file changes.
  */
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { getJson } from "./client";
 import {
   Candles,
@@ -92,18 +92,20 @@ export function useResolve(name: string) {
   });
 }
 
+const candlesQuery = (symbol: string, from: string, to: string) => ({
+  queryKey: keys.candles(symbol, from, to),
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    getJson(
+      `/dev/marketdata/candles?symbol=${encodeURIComponent(symbol)}&interval=DAY&from=${from}&to=${to}`,
+      Candles,
+      { signal },
+    ),
+  enabled: symbol.length > 0,
+  retry: false,
+});
+
 export function useCandles(symbol: string, from: string, to: string) {
-  return useQuery({
-    queryKey: keys.candles(symbol, from, to),
-    queryFn: ({ signal }) =>
-      getJson(
-        `/dev/marketdata/candles?symbol=${encodeURIComponent(symbol)}&interval=DAY&from=${from}&to=${to}`,
-        Candles,
-        { signal },
-      ),
-    enabled: symbol.length > 0,
-    retry: false,
-  });
+  return useQuery(candlesQuery(symbol, from, to));
 }
 
 /** Dev only: asks the provider for candles, validates and stores them. */
@@ -296,6 +298,55 @@ export function useDecide() {
         body: JSON.stringify({ by: d.by, note: d.note }),
         contentType: "application/json",
       }),
+    retry: false,
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.paper }),
+  });
+}
+
+/** The signal-day close of each order (its reference price), keyed by order id; shares the candle cache. */
+export function useReferenceCloses(orders: PaperOrder[]): Map<number, number> {
+  const results = useQueries({
+    queries: orders.map((o) => candlesQuery(o.symbol, o.signalDate, o.signalDate)),
+  });
+  const closes = new Map<number, number>();
+  orders.forEach((o, i) => {
+    const close = results[i]?.data?.at(-1)?.close;
+    if (close !== undefined) closes.set(o.id, close);
+  });
+  return closes;
+}
+
+export type ManyDecisions = { orderIds: number[]; approve: boolean; by: string; note: string };
+export type DecisionOutcome = { orderId: number; ok: boolean; message: string | null };
+
+/**
+ * Decides several orders the person ticked and confirmed together. The backend has no bulk call, so
+ * each order is sent on its own, one after another; one refusal does not stop the rest, and every
+ * outcome is reported.
+ */
+export function useDecideMany() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (d: ManyDecisions): Promise<DecisionOutcome[]> => {
+      const outcomes: DecisionOutcome[] = [];
+      for (const orderId of d.orderIds) {
+        try {
+          await getJson(
+            `${PAPER}/orders/${String(orderId)}/${d.approve ? "approve" : "reject"}`,
+            PaperOrder,
+            {
+              method: "POST",
+              body: JSON.stringify({ by: d.by, note: d.note }),
+              contentType: "application/json",
+            },
+          );
+          outcomes.push({ orderId, ok: true, message: null });
+        } catch (e) {
+          outcomes.push({ orderId, ok: false, message: e instanceof Error ? e.message : "failed" });
+        }
+      }
+      return outcomes;
+    },
     retry: false,
     onSettled: () => qc.invalidateQueries({ queryKey: keys.paper }),
   });

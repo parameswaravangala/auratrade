@@ -114,6 +114,42 @@ describe("approval queue", () => {
     expect(within(card).getByRole("button", { name: "Reject…" })).toBeInTheDocument();
   });
 
+  it("approves ticked orders together after one confirmation that lists them, reporting refusals", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("auratrade.decidedBy", "Tester");
+    const sent: string[] = [];
+    server.use(
+      http.post("*/api/v1/paper/orders/:id/approve", ({ params }) => {
+        sent.push(String(params.id));
+        return params.id === "12"
+          ? HttpResponse.json({ status: 409, detail: "order 12 is EXPIRED, not PROPOSED" }, { status: 409 })
+          : HttpResponse.json({ ...PAPER_VIEW.proposed[0], status: "APPROVED" });
+      }),
+    );
+    renderApp("/approvals");
+    const all = await screen.findByRole("checkbox", { name: "Select all 2 for 2026-11-27" });
+    expect(screen.queryByRole("region", { name: "Bulk decision" })).not.toBeInTheDocument();
+    expect(all).not.toBeChecked();
+    await user.click(all);
+
+    const bulk = screen.getByRole("region", { name: "Bulk decision" });
+    expect(bulk).toHaveTextContent("2 selected");
+    await user.click(within(bulk).getByRole("button", { name: "Approve 2…" }));
+    const list = within(bulk).getByRole("table", { name: "Orders to decide" });
+    expect(list).toHaveTextContent("SELL 40 NOVA");
+    expect(list).toHaveTextContent("BUY 120 ACME");
+    await waitFor(() => {
+      expect(list).toHaveTextContent("₹54,000");
+    });
+    expect(sent).toHaveLength(0);
+    await user.click(within(bulk).getByRole("button", { name: "Approve 2 orders" }));
+
+    expect(await within(bulk).findByRole("alert")).toHaveTextContent("1 approved, 1 refused");
+    expect(within(bulk).getByRole("alert")).toHaveTextContent("NOVA: order 12 is EXPIRED, not PROPOSED");
+    expect(sent.sort()).toEqual(["11", "12"]);
+    expect(screen.getByRole("checkbox", { name: "Select BUY 120 ACME" })).not.toBeChecked();
+  });
+
   it("closes the decision at 09:15 IST on the fill date", async () => {
     vi.setSystemTime(new Date("2026-11-27T03:45:00Z"));
     localStorage.setItem("auratrade.decidedBy", "Tester");

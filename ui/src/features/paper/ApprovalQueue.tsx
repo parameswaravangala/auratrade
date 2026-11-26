@@ -19,14 +19,16 @@ import { label } from "@/lib/playbook";
 import { istDayMonth, istHm } from "@/lib/time";
 import { pickAccount, useNow } from "./account";
 import { AccountPicker } from "./AccountPicker";
+import { BulkDecision } from "./BulkDecision";
 import { OrderCard } from "./OrderCard";
 
 const route = getRouteApi("/approvals");
 
 /**
  * Every paper order the evening job proposes waits here for a person (ADR 0005, 0024). Each one is
- * approved or rejected on its own, with a name and an optional reason; nothing is pre-selected and
- * there is no "approve all". Orders not decided by 09:15 IST on the fill date expire.
+ * decided on its own or ticked and decided together after a confirmation that lists them all, with
+ * a name and an optional reason; nothing is ticked for you. Orders not decided by 09:15 IST on the
+ * fill date expire.
  */
 export function ApprovalQueue() {
   const search = route.useSearch();
@@ -37,6 +39,21 @@ export function ApprovalQueue() {
   const orders = usePaperOrders(account?.id);
   const now = useNow();
   const [decider, setDecider] = useState(rememberedDecider);
+  const [ticked, setTicked] = useState<ReadonlySet<number>>(new Set());
+  const onDecider = (name: string) => {
+    setDecider(name);
+    rememberDecider(name.trim());
+  };
+  const toggle = (ids: number[], on: boolean) => {
+    setTicked((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
 
   if (accounts.isPending) return <Loading label="Loading paper accounts" />;
   if (accounts.isError) return <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} />;
@@ -44,6 +61,9 @@ export function ApprovalQueue() {
 
   const proposed = view.data?.proposed ?? [];
   const decided = (orders.data ?? []).filter((o) => o.status !== "PROPOSED");
+  // Only orders still proposed and still open can stay ticked.
+  const isOpen = (o: PaperOrder) => timeLeft(decisionDeadline(o.fillDate), now) !== null;
+  const selected = proposed.filter((o) => ticked.has(o.id) && isOpen(o));
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -59,6 +79,17 @@ export function ApprovalQueue() {
         }
       >
         <div className="grid gap-4 px-4 pt-3 pb-4">
+          <BulkDecision
+            selected={selected}
+            decider={decider}
+            onDecider={onDecider}
+            onClear={() => {
+              setTicked(new Set());
+            }}
+            onDecided={(ids) => {
+              toggle(ids, false);
+            }}
+          />
           {view.isPending ? (
             <Loading label="Loading proposed orders" />
           ) : view.isError ? (
@@ -77,7 +108,20 @@ export function ApprovalQueue() {
               const left = timeLeft(deadline, now);
               return (
                 <section key={g.fillDate} aria-label={`Orders for ${g.fillDate}`} className="grid gap-2">
-                  <h3 className="m-0 flex flex-wrap items-baseline gap-x-3 text-xs font-medium text-tx">
+                  <h3 className="m-0 flex flex-wrap items-center gap-x-3 text-xs font-medium text-tx">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-[var(--a)]"
+                      aria-label={`Select all ${String(g.orders.length)} for ${g.fillDate}`}
+                      disabled={left === null}
+                      checked={left !== null && g.orders.every((o) => ticked.has(o.id))}
+                      onChange={(e) => {
+                        toggle(
+                          g.orders.map((o) => o.id),
+                          e.target.checked,
+                        );
+                      }}
+                    />
                     For the open on {g.fillDate}
                     <span className={clsx("num text-[11px]", left ? "text-warn" : "text-dn")}>
                       {left
@@ -92,9 +136,10 @@ export function ApprovalQueue() {
                         order={o}
                         open={left !== null}
                         decider={decider}
-                        onDecider={(name) => {
-                          setDecider(name);
-                          rememberDecider(name.trim());
+                        onDecider={onDecider}
+                        selected={ticked.has(o.id)}
+                        onToggle={() => {
+                          toggle([o.id], !ticked.has(o.id));
                         }}
                       />
                     ))}

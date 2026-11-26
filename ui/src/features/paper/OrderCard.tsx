@@ -16,9 +16,13 @@ export function OrderCard({
   open,
   decider,
   onDecider,
+  selected,
+  onToggle,
 }: {
   order: PaperOrder;
   open: boolean;
+  selected: boolean;
+  onToggle: () => void;
   /** Who decides; asked in the confirmation, shared across cards and remembered in this browser. */
   decider: string;
   onDecider: (name: string) => void;
@@ -38,10 +42,19 @@ export function OrderCard({
       className={clsx(
         "grid gap-2 rounded-xl border bg-s2/40 px-3 py-2.5",
         o.side === "BUY" ? "border-up/25" : "border-dn/30",
+        selected && "outline-2 outline-offset-1 outline-a/60",
       )}
       aria-label={`Proposed ${what}`}
     >
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <input
+          type="checkbox"
+          className="size-4 self-center accent-[var(--a)]"
+          aria-label={`Select ${what}`}
+          checked={selected}
+          disabled={closed}
+          onChange={onToggle}
+        />
         <span className={clsx("tag", o.side === "BUY" ? "tag-g" : "tag-r")}>{o.side}</span>
         <Link
           to="/dossier"
