@@ -100,6 +100,53 @@ class EodCandleJobIT extends PostgresIntegrationTest {
   }
 
   private EodCandleJob job(double minCoverage) {
+    return job(minCoverage, List.of());
+  }
+
+  private void addNiftyIndex() {
+    long id =
+        jdbc.sql(
+                """
+                insert into instrument (exchange, segment, trading_symbol, series,
+                                        instrument_type, name, isin, tick_size, lot_size,
+                                        first_seen_on, last_seen_on)
+                values ('NSE', 'INDEX', 'NIFTY', 'INDEX', 'INDEX', 'Nifty 50', null, 0.05, 1,
+                        '2026-01-23', '2026-01-23')
+                returning id
+                """)
+            .query(Long.class)
+            .single();
+    jdbc.sql(
+            """
+            insert into instrument_provider_key (provider, provider_key, instrument_id,
+                                                 first_seen_on, last_seen_on)
+            values ('FAKE', 'KN', :id, '2026-01-23', '2026-01-23')
+            """)
+        .param("id", id)
+        .update();
+  }
+
+  @Test
+  void theBenchmarkIsLoadedWithTheShares() {
+    addNiftyIndex();
+
+    job(0.5, List.of("NIFTY")).execute(FRIDAY);
+
+    assertThat(stored()).isEqualTo(5);
+  }
+
+  @Test
+  void aBenchmarkWithoutTheDayFailsTheRunBeforeAnyShareIsFetched() {
+    addNiftyIndex();
+    provider.script.put("KN", "none");
+
+    assertThatThrownBy(() -> job(0.5, List.of("NIFTY")).execute(FRIDAY))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("benchmark NIFTY has no candle for 2026-01-23");
+    assertThat(stored()).isZero();
+  }
+
+  private EodCandleJob job(double minCoverage, List<String> benchmarks) {
     var ingestion =
         new CandleIngestionService(
             provider, candles, new CandleValidator(calendar, QualityRules.defaults()), clock);
@@ -108,7 +155,7 @@ class EodCandleJobIT extends PostgresIntegrationTest {
         calendar,
         clock,
         new EodCandleJob.Settings(
-            LocalTime.of(19, 0), 30, List.of("EQ"), 0, minCoverage, List.of()));
+            LocalTime.of(19, 0), 30, List.of("EQ"), 0, minCoverage, benchmarks));
   }
 
   private long stored() {

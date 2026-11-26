@@ -80,6 +80,19 @@ public class EodCandleJob implements ScheduledJob {
       throw new IllegalStateException(
           "no active shares with a " + ingestion.providerName() + " key; load instruments first");
     }
+    // Benchmarks first and required: screens such as relative strength cannot run without them,
+    // and a long run reaching them last could lose the day (backlog B-029). Fails the run.
+    for (String index : settings.benchmarks()) {
+      var result = ingestion.ingestIndex(index, fetchFrom, window.to());
+      if (result.hasErrors()) {
+        throw new IllegalStateException(
+            "benchmark " + index + " failed validation for " + window.to());
+      }
+      if (!window.to().equals(result.newestDate())) {
+        throw new IllegalStateException(
+            "benchmark " + index + " has no candle for " + window.to() + " yet");
+      }
+    }
     int ok = 0;
     int withLastDay = 0;
     List<String> failed = new ArrayList<>();
@@ -98,17 +111,6 @@ public class EodCandleJob implements ScheduledJob {
         throw e;
       } catch (RuntimeException e) {
         failed.add(share.tradingSymbol() + " (" + e.getClass().getSimpleName() + ")");
-      }
-    }
-    for (String index : settings.benchmarks()) {
-      try {
-        if (ingestion.ingestIndex(index, fetchFrom, window.to()).hasErrors()) {
-          failed.add(index + " (benchmark validation)");
-        }
-      } catch (ProviderException.Auth | ProviderException.RateLimited e) {
-        throw e;
-      } catch (RuntimeException e) {
-        failed.add(index + " (benchmark " + e.getClass().getSimpleName() + ")");
       }
     }
     double coverage = (double) withLastDay / universe.size();
