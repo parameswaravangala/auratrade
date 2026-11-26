@@ -126,6 +126,43 @@ final class ScreenReplay {
     return new Outcome(samples, dropped);
   }
 
+  /**
+   * Dates on which {@code screen} matched this share, with the score, using the same no-look-ahead
+   * window and guard as {@link #replay}. For the portfolio simulation.
+   */
+  static List<PortfolioSimulator.Signal> signals(
+      Series share, Series benchmark, Screen screen, Set<LocalDate> dates, Guard guard) {
+    List<Candle> c = share.candles();
+    Map<LocalDate, Integer> benchIndex = indexByDate(benchmark.candles());
+    List<PortfolioSimulator.Signal> out = new ArrayList<>();
+    int need = screen.lookback();
+    for (int i = need - 1; i < c.size(); i++) {
+      LocalDate date = c.get(i).tradingDate();
+      if (!dates.contains(date)) {
+        continue;
+      }
+      Series window = slice(share, i + 1 - need, i + 1);
+      if (guard.check(window, date, need) != null) {
+        continue;
+      }
+      Optional<Series> benchWindow = Optional.empty();
+      if (screen.needsBenchmark()) {
+        Integer b = benchIndex.get(date);
+        if (b == null || b + 1 < need) {
+          continue;
+        }
+        benchWindow = Optional.of(slice(benchmark, b + 1 - need, b + 1));
+      }
+      screen
+          .evaluate(window, new Screen.Context(date, benchWindow))
+          .ifPresent(h ->
+              out.add(
+                  new PortfolioSimulator.Signal(
+                      date, share.instrumentId(), share.symbol(), h.score())));
+    }
+    return out;
+  }
+
   private static Series slice(Series s, int from, int to) {
     return new Series(s.instrumentId(), s.symbol(), s.name(), s.candles().subList(from, to));
   }

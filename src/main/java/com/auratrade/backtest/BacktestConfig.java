@@ -18,4 +18,13 @@ class BacktestConfig {
       TradingCalendar calendar) {
     return new ScreenBacktestService(reader, candleProvider, screener, calendar);
   }
+
+  @Bean
+  PortfolioSimulationService portfolioSimulationService(
+      CandleSeriesReader reader,
+      MarketDataProvider candleProvider,
+      ScreenerService screener,
+      TradingCalendar calendar) {
+    return new PortfolioSimulationService(reader, candleProvider, screener, calendar);
+  }
 }

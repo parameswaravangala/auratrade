@@ -70,6 +70,17 @@ public class CandleSeriesReader {
             .param("series", series)
             .query(Long.class)
             .list();
+    forEachInstrument(source, interval, asOf, lookback, ids, consumer);
+  }
+
+  /** As {@link #forEachShare}, for the given instrument ids (any segment). */
+  public void forEachInstrument(
+      String source,
+      Interval interval,
+      LocalDate asOf,
+      int lookback,
+      List<Long> ids,
+      Consumer<Series> consumer) {
     for (int from = 0; from < ids.size(); from += CHUNK) {
       List<Long> chunk = ids.subList(from, Math.min(from + CHUNK, ids.size()));
       SeriesCollector collector = new SeriesCollector(consumer);
