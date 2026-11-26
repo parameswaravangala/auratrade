@@ -136,8 +136,12 @@ class MarketDataConfig {
    * The candle provider consumers use (ADR 0016), chosen by auratrade.marketdata.candles.provider.
    * Development defaults to upstox; production must set it explicitly. An unknown name stops
    * startup rather than falling back silently.
+   *
+   * <p>Primary, because the concrete provider beans are MarketDataProviders too: injecting the
+   * interface must always give the selected one.
    */
   @Bean
+  @org.springframework.context.annotation.Primary
   MarketDataProvider candleProvider(
       @Value("${auratrade.marketdata.candles.provider}") String name, UpstoxCandleProvider upstox) {
     return switch (name.trim().toUpperCase(Locale.ROOT)) {
