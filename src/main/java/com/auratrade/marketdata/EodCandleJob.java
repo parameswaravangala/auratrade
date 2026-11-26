@@ -21,7 +21,7 @@ import java.util.Optional;
  */
 public class EodCandleJob implements ScheduledJob {
 
-  static final String NAME = "eod-candles";
+  public static final String NAME = "eod-candles";
   private static final int MAX_LISTED_FAILURES = 20;
 
   /**
@@ -70,6 +70,9 @@ public class EodCandleJob implements ScheduledJob {
 
   @Override
   public JobOutcome execute(JobWindow window) {
+    // Re-fetch the previous trading day too: a same-day bar can be provisional (Upstox serves today
+    // from its intraday endpoint), and the next evening replaces it with the final historical bar.
+    LocalDate fetchFrom = calendar.previousTradingDay(window.from());
     List<CandleRepository.Target> universe =
         ingestion.universe(settings.series(), settings.maxInstruments());
     if (universe.isEmpty()) {
@@ -81,7 +84,7 @@ public class EodCandleJob implements ScheduledJob {
     List<String> failed = new ArrayList<>();
     for (CandleRepository.Target share : universe) {
       try {
-        var result = ingestion.ingest(share, Interval.DAY, window.from(), window.to());
+        var result = ingestion.ingest(share, Interval.DAY, fetchFrom, window.to());
         if (result.hasErrors()) {
           failed.add(share.tradingSymbol() + " (validation)");
           continue;
@@ -98,7 +101,7 @@ public class EodCandleJob implements ScheduledJob {
     }
     for (String index : settings.benchmarks()) {
       try {
-        if (ingestion.ingestIndex(index, window.from(), window.to()).hasErrors()) {
+        if (ingestion.ingestIndex(index, fetchFrom, window.to()).hasErrors()) {
           failed.add(index + " (benchmark validation)");
         }
       } catch (ProviderException.Auth | ProviderException.RateLimited e) {

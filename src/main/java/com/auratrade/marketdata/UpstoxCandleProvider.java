@@ -47,16 +47,20 @@ final class UpstoxCandleProvider implements MarketDataProvider {
   private final RestClient http;
   private final String token;
   private final WindowRateLimiter limiter;
+  private final java.time.Clock clock;
 
   /**
    * @param http a RestClient whose base URL is the Upstox API root, for example
    *     https://api.upstox.com
    * @param token the Analytics token; blank means not configured
+   * @param clock decides which date is "today" (IST)
    */
-  UpstoxCandleProvider(RestClient http, String token, WindowRateLimiter limiter) {
+  UpstoxCandleProvider(
+      RestClient http, String token, WindowRateLimiter limiter, java.time.Clock clock) {
     this.http = http;
     this.token = token == null ? "" : token.trim();
     this.limiter = limiter;
+    this.clock = clock;
   }
 
   @Override
@@ -86,14 +90,32 @@ final class UpstoxCandleProvider implements MarketDataProvider {
       throw new ProviderException.Auth(
           NAME, "UPSTOX_ANALYTICS_TOKEN is not set; generate it in the Upstox developer console");
     }
+    // The historical endpoint stops at yesterday; today's daily bar comes from the intraday
+    // endpoint (checked live 2026-11-26). Split a DAY request that reaches today.
+    LocalDate today = LocalDate.now(clock.withZone(com.auratrade.platform.time.MarketZones.IST));
+    boolean includesToday = interval == Interval.DAY && !from.isAfter(today) && !to.isBefore(today);
+    LocalDate historicalTo = includesToday ? today.minusDays(1) : to;
     List<Candle> out = new ArrayList<>();
-    for (LocalDate start = from; !start.isAfter(to); ) {
+    for (LocalDate start = from; !start.isAfter(historicalTo); ) {
       LocalDate end = start.plus(unit.maxSpan()).minusDays(1);
-      if (end.isAfter(to)) {
-        end = to;
+      if (end.isAfter(historicalTo)) {
+        end = historicalTo;
       }
-      out.addAll(fetch(providerKey, unit, start, end));
+      out.addAll(
+          fetch(
+              providerKey,
+              "/v3/historical-candle/{key}/{unit}/{interval}/{to}/{from}",
+              providerKey,
+              unit.unit(),
+              unit.interval(),
+              end,
+              start));
       start = end.plusDays(1);
+    }
+    if (includesToday) {
+      fetch(providerKey, "/v3/historical-candle/intraday/{key}/days/1", providerKey).stream()
+          .filter(c -> c.tradingDate().equals(today))
+          .forEach(out::add);
     }
     return interval == Interval.DAY ? atIstMidnight(out) : out;
   }
@@ -118,16 +140,10 @@ final class UpstoxCandleProvider implements MarketDataProvider {
         .toList();
   }
 
-  private List<Candle> fetch(String key, Unit unit, LocalDate from, LocalDate to) {
+  private List<Candle> fetch(String key, String uriTemplate, Object... uriVariables) {
     limiter.acquire();
     return http.get()
-        .uri(
-            "/v3/historical-candle/{key}/{unit}/{interval}/{to}/{from}",
-            key,
-            unit.unit(),
-            unit.interval(),
-            to,
-            from)
+        .uri(uriTemplate, uriVariables)
         .accept(MediaType.APPLICATION_JSON)
         .header("Authorization", "Bearer " + token)
         .exchange((request, response) -> {

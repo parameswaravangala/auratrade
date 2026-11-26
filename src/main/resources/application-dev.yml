@@ -9,5 +9,5 @@ auratrade:
   jobs:
     enabled: true
     eod-candles:
-      # Keep development runs short; production loads every share.
-      max-instruments: 50
+      # All shares: paper trading needs the full universe (0 = no limit).
+      max-instruments: 0

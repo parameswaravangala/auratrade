@@ -48,8 +48,11 @@ class PaperTradingConfig {
   }
 
   @Bean
-  PaperTradingJob paperTradingJob(PaperTradingService paper, TradingCalendar calendar) {
-    return new PaperTradingJob(paper, calendar);
+  PaperTradingJob paperTradingJob(
+      PaperTradingService paper,
+      TradingCalendar calendar,
+      com.auratrade.platform.jobs.JobRunRepository runs) {
+    return new PaperTradingJob(paper, calendar, runs);
   }
 
   /** 20:15 IST, after the 19:30 EOD job. Exists only when jobs are enabled. */

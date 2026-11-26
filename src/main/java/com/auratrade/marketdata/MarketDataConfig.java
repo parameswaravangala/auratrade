@@ -129,7 +129,7 @@ class MarketDataConfig {
                 new WindowRateLimiter.Limit(400, Duration.ofMinutes(1)),
                 new WindowRateLimiter.Limit(1600, Duration.ofMinutes(30))),
             clock);
-    return new UpstoxCandleProvider(http, token, limiter);
+    return new UpstoxCandleProvider(http, token, limiter, clock);
   }
 
   /**
