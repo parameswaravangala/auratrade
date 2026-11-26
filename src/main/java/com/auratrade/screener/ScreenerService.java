@@ -74,6 +74,19 @@ public class ScreenerService {
     this.benchmark = benchmark;
   }
 
+  /** The screen objects themselves, for replaying them over history (backtests). */
+  public List<Screen> definitions() {
+    return List.copyOf(screens.values());
+  }
+
+  public String benchmark() {
+    return benchmark;
+  }
+
+  public List<String> series() {
+    return series;
+  }
+
   public List<ScreenInfo> screens() {
     return screens.values().stream()
         .map(s -> new ScreenInfo(s.name(), s.description(), s.lookback()))
@@ -143,7 +156,7 @@ public class ScreenerService {
   }
 
   /** The reason to skip a share, or null if it may be screened. */
-  String guard(Series s, LocalDate asOf, int needed) {
+  public String guard(Series s, LocalDate asOf, int needed) {
     if (!asOf.equals(s.lastDate())) {
       return "STALE";
     }
