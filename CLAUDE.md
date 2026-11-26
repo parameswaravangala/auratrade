@@ -47,7 +47,7 @@ Java 21 (move to 25 LTS later), Spring Boot 4.1.x, Spring AI 2.0.x (Ollama start
 - Scheduled jobs (ADR 0017): Spring `@Scheduled` (IST cron) + `job_run` history (V7) + `job_lock` lease; `JobRunner` plans what is owed from the last completed window, so missed runs heal; startup catch-up; EOD catch-up capped at 30 trading days. Jobs `instrument-master` (07:00) and `eod-candles` (19:30, cutoff 19:00 unverified). On in dev and prod profiles. Dev: `POST /dev/jobs/{name}/run`, `GET /dev/jobs/runs`.
 - Backfill (ADR 0018): `backfill_request`/`backfill_item` (V8); `BackfillService` creates a request per date range (calendar must cover it, must end before today) and works through one item per share; `backfill` job every 15 minutes and at startup, batches of 400, resumable; validation failures FAILED, transient errors retried 3 times, auth or rate-limit stops the batch. Dev: `POST /dev/marketdata/backfills?from=- Next Sprint 2 slices (enterprise ingestion, ADR 0015): backfill; to=- Next Sprint 2 slices (enterprise ingestion, ADR 0015): backfill; series=EQ`, `GET /dev/marketdata/backfills`, `POST /dev/marketdata/backfills/{id}/cancel`.
 - UI: being designed in a separate session (branch from `feat-ui-shell`), framework and look to be approved first.
-- Next Sprint 2 slices (enterprise ingestion, ADR 0015): freshness, failure and token-expiry alerts; then replay fixtures; staleness alert.
+- Next Sprint 2 slices (enterprise ingestion, ADR 0015): replay fixtures. Alert delivery is parked as backlog B-027.
 - Backlog: `docs/backlog.md`.
 
 ## Background documents
