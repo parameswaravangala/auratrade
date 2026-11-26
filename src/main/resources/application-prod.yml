@@ -15,3 +15,5 @@ auratrade:
     candles:
       # No default on purpose: production must choose (upstox for now). Startup fails if unset.
       provider: ${CANDLE_PROVIDER}
+  jobs:
+    enabled: true

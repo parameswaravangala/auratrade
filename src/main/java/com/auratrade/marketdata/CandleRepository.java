@@ -55,6 +55,33 @@ public class CandleRepository {
     return found.stream().findFirst();
   }
 
+  /**
+   * Active company shares in the given series that have a key at {@code provider}, ordered by
+   * symbol. {@code limit} 0 means all.
+   */
+  List<Target> shareTargets(String exchange, String provider, List<String> series, int limit) {
+    return jdbc.sql(
+            """
+            select i.id, i.trading_symbol, k.provider_key
+            from instrument i
+            join instrument_provider_key k
+              on k.instrument_id = i.id and k.provider = :provider
+            where i.exchange = :exchange
+              and i.isin is not null
+              and i.series in (:series)
+              and i.last_seen_on =
+                  (select max(last_seen_on) from instrument where exchange = :exchange)
+            order by i.trading_symbol
+            limit :limit
+            """)
+        .param("provider", provider)
+        .param("exchange", exchange)
+        .param("series", series)
+        .param("limit", limit <= 0 ? Integer.MAX_VALUE : limit)
+        .query((rs, n) -> new Target(rs.getLong(1), rs.getString(2), rs.getString(3)))
+        .list();
+  }
+
   /** Inserts candles or refreshes them; the key is instrument, interval, source and time. */
   void upsert(
       long instrumentId,

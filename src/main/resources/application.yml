@@ -61,3 +61,7 @@ auratrade:
       # Which provider consumers read candles from (ADR 0016). Development uses Upstox;
       # production sets it explicitly (see application-prod.yml).
       provider: upstox
+  jobs:
+    # Schedules and startup catch-up (ADR 0017). Off by default so tests and tools never start
+    # jobs; the dev and prod profiles turn them on.
+    enabled: false
