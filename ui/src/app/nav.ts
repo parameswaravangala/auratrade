@@ -29,7 +29,7 @@ export const NAV: NavItem[] = [
     live: true,
   },
   { to: "/research", label: "Research desk", subtitle: "news, themes, theses", icon: Sparkles, live: false },
-  { to: "/playbooks", label: "Playbook lab", subtitle: "rules and backtests", icon: FileText, live: false },
+  { to: "/playbooks", label: "Playbook lab", subtitle: "rules and backtests", icon: FileText, live: true },
   {
     to: "/approvals",
     label: "Approval queue",

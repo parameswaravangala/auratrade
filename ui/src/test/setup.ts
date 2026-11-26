@@ -25,6 +25,7 @@ class NoopResizeObserver {
 globalThis.ResizeObserver = NoopResizeObserver;
 HTMLCanvasElement.prototype.getContext = () => null;
 Element.prototype.scrollIntoView = () => undefined;
+window.scrollTo = () => undefined;
 
 beforeAll(() => {
   server.listen({ onUnhandledFrame: "error" });

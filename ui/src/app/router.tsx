@@ -12,6 +12,7 @@ import { About } from "@/features/about/About";
 import { CommandCenter } from "@/features/command-center/CommandCenter";
 import { ComingSoon } from "@/features/coming/ComingSoon";
 import { Dossier } from "@/features/dossier/Dossier";
+import { PlaybookLab } from "@/features/playbooks/PlaybookLab";
 import { RANGES, type RangeKey } from "@/lib/candles";
 
 const rootRoute = createRootRoute({ component: Shell });
@@ -43,7 +44,21 @@ const dossierRoute = createRoute({
   component: Dossier,
 });
 
-const coming = (path: "/research" | "/playbooks" | "/approvals" | "/portfolio" | "/agents" | "/calendar") =>
+const PlaybookSearch = z.object({
+  screen: z
+    .string()
+    .regex(/^[a-z0-9-]{1,60}$/)
+    .optional()
+    .catch(undefined),
+});
+const playbooksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/playbooks",
+  validateSearch: (s) => PlaybookSearch.parse(s),
+  component: PlaybookLab,
+});
+
+const coming = (path: "/research" | "/approvals" | "/portfolio" | "/agents" | "/calendar") =>
   createRoute({ getParentRoute: () => rootRoute, path, component: () => <ComingSoon path={path} /> });
 
 const aboutRoute = createRoute({ getParentRoute: () => rootRoute, path: "/about", component: About });
@@ -52,7 +67,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   dossierRoute,
   coming("/research"),
-  coming("/playbooks"),
+  playbooksRoute,
   coming("/approvals"),
   coming("/portfolio"),
   coming("/agents"),
