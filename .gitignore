@@ -19,3 +19,6 @@ application-local.yml
 # OS
 .DS_Store
 Thumbs.db
+
+# Vite caches
+.vite/
