@@ -1,5 +1,5 @@
 # Usage: grep -hE "^(HOLIDAY|SPECIAL)," nse-calendar.csv > cal.csv; awk -F, -f reconcile.awk cal.csv days.csv
-# Inputs: 1) calendar rows "TYPE,date,..." (draft + live calendar), 2) days.csv "date,dow,http".
+# Inputs: 1) calendar rows "TYPE,date,...", 2) days.csv "date,dow,http" (200 traded, 404 closed).
 # Prints every date where the archive and the calendar disagree. 200 = traded, 404 = closed.
 FNR==NR { if ($1=="HOLIDAY") hol[$2]=1; if ($1=="SPECIAL") spec[$2]=1; next }
 {

@@ -33,9 +33,36 @@ class NseCalendarFileTest {
 
   @Test
   void coversTheReconciledYears() {
-    assertThat(calendar.covers(2024)).isTrue();
-    assertThat(calendar.covers(2025)).isTrue();
-    assertThat(calendar.covers(2026)).isTrue();
+    for (int year = 2018; year <= 2026; year++) {
+      assertThat(calendar.covers(year)).as("covers %d", year).isTrue();
+    }
+    assertThat(calendar.covers(2017)).isFalse();
+  }
+
+  @Test
+  void amendmentsFoundThroughIndexHistoryAreIncluded() {
+    assertThat(trades("2019-04-29")).as("Mumbai Lok Sabha election").isFalse();
+    assertThat(trades("2019-10-21")).as("Maharashtra assembly election").isFalse();
+    assertThat(trades("2019-10-27")).as("Sunday Muhurat").isTrue();
+    assertThat(trades("2020-02-01")).as("Budget Saturday").isTrue();
+    assertThat(trades("2020-11-14")).as("Saturday Muhurat").isTrue();
+    assertThat(trades("2023-06-28")).as("Bakri Id moved away").isTrue();
+    assertThat(trades("2023-06-29")).as("Bakri Id moved here").isFalse();
+    assertThat(trades("2023-11-12")).as("Sunday Muhurat").isTrue();
+  }
+
+  @Test
+  void tradingDayCountsMatchIndexHistory() {
+    // Days with a Nifty 50 daily value, counted on 2026-11-26 (Upstox history).
+    int[][] expected = {
+      {2018, 246}, {2019, 245}, {2020, 252}, {2021, 248}, {2022, 248}, {2023, 246}
+    };
+    for (int[] e : expected) {
+      LocalDate from = LocalDate.of(e[0], 1, 1);
+      assertThat(calendar.tradingDaysBetween(from, from.withDayOfYear(from.lengthOfYear())))
+          .as("trading days in %d", e[0])
+          .hasSize(e[1]);
+    }
   }
 
   @Test

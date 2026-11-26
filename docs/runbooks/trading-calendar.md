@@ -44,8 +44,10 @@ evidence of what actually happened (available from 2024-01-01).
    circular reference, and re-run until nothing is printed. Update the day counts in
    `NseCalendarFileTest`.
 
-Years before 2024 are in `docs/calendar/nse-holidays-draft.csv` (annual circulars only) and are
-not loaded until reconciled against another official source, for example index history.
+For years before 2024 (no bhavcopy archive in the new format), use daily Nifty 50 history from the
+candle provider as the evidence instead: a trading day is a day with an index value. This was
+checked against the archive for 2024 and 2025 and matched on all 498 trading days. 2018 to 2023
+were reconciled this way on 2026-11-26.
 
 ## Urgent change (holiday announced at short notice)
 
