@@ -23,11 +23,7 @@ afterEach(() => {
 describe("approval queue", () => {
   it("lists proposed orders, sells first, with the time left to decide and the recent decisions", async () => {
     renderApp("/approvals");
-    const group = await screen.findByRole(
-      "region",
-      { name: "Orders for 2026-11-27" },
-      { timeout: 5000 }, // the first render in a file also loads the modules
-    );
+    const group = await screen.findByRole("region", { name: "Orders for 2026-11-27" });
     expect(group).toHaveTextContent("decide by 09:15 IST · 16 h 15 min left");
     const cards = within(group).getAllByRole("listitem");
     expect(cards.map((c) => c.getAttribute("aria-label"))).toEqual([
@@ -35,6 +31,12 @@ describe("approval queue", () => {
       "Proposed BUY 120 ACME",
     ]);
     expect(cards[1]).toHaveTextContent("Screen entry");
+    // Reference price is the signal day close; ACME 120 × 450 with the stop at 410.50.
+    await waitFor(() => {
+      expect(within(cards[1]!).getByLabelText("Estimate")).toHaveTextContent("ref price ₹450.00");
+    });
+    expect(within(cards[1]!).getByLabelText("Estimate")).toHaveTextContent("value about ₹54,000");
+    expect(within(cards[1]!).getByLabelText("Estimate")).toHaveTextContent("risk to stop ₹4,740");
 
     const decided = await screen.findByRole("list", { name: "Recent decisions" });
     expect(decided).toHaveTextContent("filled");
@@ -42,14 +44,20 @@ describe("approval queue", () => {
     expect(decided).toHaveTextContent("not decided before the open");
   });
 
-  it("asks who decides before any decision can be made", async () => {
+  it("asks who decides in the confirmation, and remembers it for the next order", async () => {
     const user = userEvent.setup();
     renderApp("/approvals");
     const card = await screen.findByRole("listitem", { name: "Proposed BUY 120 ACME" });
-    expect(within(card).getByRole("button", { name: "Approve…" })).toBeDisabled();
-    expect(card).toHaveTextContent("Enter your name above first.");
-    await user.type(screen.getByLabelText(/Decide as/), "Tester");
-    expect(within(card).getByRole("button", { name: "Approve…" })).toBeEnabled();
+    await user.click(within(card).getByRole("button", { name: "Approve…" }));
+    const confirm = within(card).getByRole("form", { name: "Confirm approve" });
+    expect(within(confirm).getByRole("button", { name: "Approve BUY 120 ACME" })).toBeDisabled();
+    expect(confirm).toHaveTextContent("Enter your name to confirm.");
+    await user.type(within(confirm).getByLabelText(/Your name/), "Tester");
+    expect(within(confirm).getByRole("button", { name: "Approve BUY 120 ACME" })).toBeEnabled();
+
+    const other = screen.getByRole("listitem", { name: "Proposed SELL 40 NOVA" });
+    await user.click(within(other).getByRole("button", { name: "Reject…" }));
+    expect(within(other).getByLabelText(/Your name/)).toHaveValue("Tester");
   });
 
   it("approves one order after a confirmation that names it, recording who and why", async () => {
@@ -67,11 +75,11 @@ describe("approval queue", () => {
       ),
     );
     renderApp("/approvals");
-    await user.type(await screen.findByLabelText(/Decide as/), "Tester");
     const card = await screen.findByRole("listitem", { name: "Proposed BUY 120 ACME" });
     await user.click(within(card).getByRole("button", { name: "Approve…" }));
 
     const confirm = within(card).getByRole("form", { name: "Confirm approve" });
+    await user.type(within(confirm).getByLabelText(/Your name/), "Tester");
     expect(confirm).toHaveTextContent("Approve BUY 120 ACME on paper, to fill at the 2026-11-27 open?");
     expect(sent).toHaveLength(0);
     await user.type(within(confirm).getByLabelText(/Why/), "fits the plan");

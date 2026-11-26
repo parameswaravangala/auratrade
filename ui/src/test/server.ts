@@ -35,7 +35,14 @@ export const handlers = [
     }
     return HttpResponse.json({ reason: `no NSE share matches '${name}'` });
   }),
-  http.get("*/dev/marketdata/candles", () => HttpResponse.json([])),
+  http.get("*/dev/marketdata/candles", ({ request }) =>
+    new URL(request.url).searchParams.get("symbol") === "ACME" &&
+    new URL(request.url).searchParams.get("from") === "2026-11-26"
+      ? HttpResponse.json([
+          { ts: "2026-11-25T18:30:00Z", open: 440, high: 455, low: 438, close: 450, volume: 1000 },
+        ])
+      : HttpResponse.json([]),
+  ),
   http.get("*/dev/screener/screens", () => HttpResponse.json(SCREENS)),
   http.get("*/dev/screener/:name", ({ params }) =>
     HttpResponse.json({ ...SHORTLIST, screen: String(params.name) }),

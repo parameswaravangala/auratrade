@@ -91,3 +91,17 @@ export function rememberDecider(name: string): void {
     // Private windows may refuse storage; the name is then asked again next time.
   }
 }
+
+export type OrderEstimate = { price: number; value: number; riskToStop: number | null };
+
+/**
+ * What an order is worth at its reference price, the signal day's close. The backend sizes buys from
+ * that close, but fills at the next open with slippage, so the real price will differ.
+ */
+export function estimate(o: PaperOrder, close: number): OrderEstimate {
+  return {
+    price: close,
+    value: close * o.quantity,
+    riskToStop: o.side === "BUY" && o.stopPrice !== null ? (close - o.stopPrice) * o.quantity : null,
+  };
+}

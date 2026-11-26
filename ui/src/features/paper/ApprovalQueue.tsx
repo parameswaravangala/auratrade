@@ -59,22 +59,6 @@ export function ApprovalQueue() {
         }
       >
         <div className="grid gap-4 px-4 pt-3 pb-4">
-          <label className="flex flex-wrap items-center gap-2 text-[11px] text-tx3">
-            Decide as
-            <input
-              className="num w-48 rounded-lg border border-line2 bg-s2 px-2 py-1.5 text-xs text-tx outline-none focus:border-a/60"
-              value={decider}
-              placeholder="your name"
-              maxLength={60}
-              autoComplete="name"
-              onChange={(e) => {
-                setDecider(e.target.value);
-                rememberDecider(e.target.value.trim());
-              }}
-            />
-            <span>recorded with each decision.</span>
-          </label>
-
           {view.isPending ? (
             <Loading label="Loading proposed orders" />
           ) : view.isError ? (
@@ -103,7 +87,16 @@ export function ApprovalQueue() {
                   </h3>
                   <ol className="m-0 grid list-none gap-2 p-0">
                     {g.orders.map((o) => (
-                      <OrderCard key={o.id} order={o} decider={decider.trim()} open={left !== null} />
+                      <OrderCard
+                        key={o.id}
+                        order={o}
+                        open={left !== null}
+                        decider={decider}
+                        onDecider={(name) => {
+                          setDecider(name);
+                          rememberDecider(name.trim());
+                        }}
+                      />
                     ))}
                   </ol>
                 </section>
