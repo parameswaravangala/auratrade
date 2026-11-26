@@ -24,6 +24,7 @@ Items parked outside the current sprint. Keep each one small and say what unbloc
 |---|---|---|---|
 | B-020 | Corporate-action adjustment (splits, bonuses, dividends) | Raw prices jump at splits; EXTREME_MOVE warnings will fire until adjusted | Corporate-actions data source |
 | B-021 | Intraday gap detection (missing candles inside a session) | Only daily gaps are checked today | Intraday data (paid plan) |
-| B-022 | Kite Connect client: login flow, historical API, websocket ticks | Needs the paid data plan | Decision to subscribe |
+| B-022 | Kite as a second `MarketDataProvider` (ADR 0016): Kite instrument feed mapped onto ISIN instruments by symbol and series, `/auth/kite/login` and callback with the daily token stored encrypted, a morning "login needed" alert, historical candles, later websocket ticks | User accepts one Kite login per day; production provider not decided | Kite Connect subscription (INR 500/month) and the production decision |
 | B-023 | Static-IP and order-placement requirements | Live phase only | Phase 2 |
 | B-025 | Schedule the instrument load daily (after the provider file refreshes, around 6 AM for Upstox) and alert if it fails or is stale | Loading is manual via POST /dev/marketdata/instruments/load | Staleness-alert slice |
+| B-026 | Backfill history before 2026: CandleValidator needs a covered trading calendar, so earlier years need official NSE holiday lists per year, or a decided policy for validating without one | Fail-closed calendar (ADR 0012) blocks validation of uncovered years | Your decision on historical calendars |

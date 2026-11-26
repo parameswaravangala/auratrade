@@ -9,3 +9,9 @@ logging:
   structured:
     format:
       console: ecs # structured JSON logs
+
+auratrade:
+  marketdata:
+    candles:
+      # No default on purpose: production must choose (upstox for now). Startup fails if unset.
+      provider: ${CANDLE_PROVIDER}
