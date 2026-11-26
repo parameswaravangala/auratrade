@@ -2,11 +2,9 @@ package com.auratrade.marketdata;
 
 import com.auratrade.platform.time.MarketZones;
 import java.io.IOException;
-import java.io.Reader;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -17,41 +15,57 @@ import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Loads the instrument master: download, parse, sanity-check, then upsert everything in one
- * transaction. Any failure stores nothing (fail closed). Instruments missing from the file keep
- * their older last_seen_on and count as inactive; nothing is deleted.
+ * Loads the instrument master from any {@link InstrumentFeed}. Provider-neutral: it knows ISINs,
+ * series and provider keys, never a provider's file format (ADR 0015).
+ *
+ * <p>Fail closed: the whole file is checked first (exchange, unique ISINs and provider keys, row
+ * count, no large shrink since the previous load). A fault in a single row, such as a bad ISIN
+ * check digit, rejects only that row and is reported, unless too many rows are rejected. Then all
+ * accepted rows are upserted in one transaction. Instruments missing from the file keep their older
+ * last_seen_on and count as inactive. Identity is the ISIN, so a symbol change updates the same row
+ * and is reported.
  */
 public class InstrumentLoader {
 
   private static final Logger log = LoggerFactory.getLogger(InstrumentLoader.class);
 
   /**
-   * @param exchange the only exchange the file may contain, for example NSE
-   * @param minRows fewer rows than this means a truncated or wrong file
+   * @param exchange the only exchange the feed may contain, for example NSE
+   * @param minRows fewer accepted rows than this means a truncated or wrong file
    * @param maxShrink largest allowed drop in row count since the previous load (0.10 = 10%)
+   * @param maxRejected more rejected rows than this means the file itself is wrong, so the whole
+   *     load fails
    */
-  public record Rules(String exchange, int minRows, double maxShrink) {}
+  public record Rules(String exchange, int minRows, double maxShrink, int maxRejected) {}
 
   /**
-   * @param tokenMoves symbols whose Kite token now belongs to a different symbol than before. Not
-   *     an error (a rename may do this), but worth a look.
+   * @param rows rows accepted and stored
+   * @param renamed instruments whose symbol changed since the last load, as "OLD -> NEW (ISIN)"
+   * @param rejected rows skipped for a row-level fault, as "SYMBOL (provider key): reason"
    */
   public record Result(
-      LocalDate seenOn, int rows, int added, int updated, int notInFile, List<String> tokenMoves) {}
+      String provider,
+      LocalDate seenOn,
+      int rows,
+      int added,
+      int updated,
+      int notInFile,
+      List<String> renamed,
+      List<String> rejected) {}
 
-  private final InstrumentSource source;
+  private final InstrumentFeed feed;
   private final InstrumentRepository repository;
   private final TransactionTemplate tx;
   private final Clock clock;
   private final Rules rules;
 
   InstrumentLoader(
-      InstrumentSource source,
+      InstrumentFeed feed,
       InstrumentRepository repository,
       TransactionTemplate tx,
       Clock clock,
       Rules rules) {
-    this.source = source;
+    this.feed = feed;
     this.repository = repository;
     this.tx = tx;
     this.clock = clock;
@@ -60,80 +74,128 @@ public class InstrumentLoader {
 
   public Result load() {
     List<Instrument> instruments;
-    try (Reader reader = source.open()) {
-      instruments = InstrumentCsvParser.parse(reader);
+    try {
+      instruments = feed.fetch();
     } catch (IOException e) {
-      throw new InstrumentFileException("could not read the instrument file: " + e.getMessage(), e);
+      throw new InstrumentFileException(
+          "could not read the " + feed.provider() + " instrument file: " + e.getMessage(), e);
     }
+    List<String> rejected = new ArrayList<>();
+    List<Instrument> accepted = checkFile(instruments, rejected);
     LocalDate today = LocalDate.now(clock.withZone(MarketZones.IST));
-    Result result = tx.execute(status -> store(instruments, today));
-    log.info("Instrument master loaded: {}", result);
-    if (!result.tokenMoves().isEmpty()) {
-      log.warn("Kite tokens moved between symbols: {}", result.tokenMoves());
+    Result result = tx.execute(status -> store(accepted, rejected, today));
+    log.info(
+        "Instrument master loaded from {}: {} rows, {} added, {} not in file, {} renamed,"
+            + " {} rejected",
+        result.provider(),
+        result.rows(),
+        result.added(),
+        result.notInFile(),
+        result.renamed().size(),
+        result.rejected().size());
+    if (!result.renamed().isEmpty()) {
+      log.warn("Instruments renamed since the last load: {}", result.renamed());
+    }
+    if (!result.rejected().isEmpty()) {
+      log.warn("Instrument rows rejected: {}", result.rejected());
     }
     return result;
   }
 
-  private Result store(List<Instrument> instruments, LocalDate today) {
-    checkFile(instruments);
+  /** A fault in one row: the row is skipped and reported, the rest of the file still loads. */
+  private static String rowFault(Instrument i) {
+    if (!i.isIndex() && !Isin.isValid(i.isin())) {
+      return "invalid ISIN '" + i.isin() + "'";
+    }
+    if (i.tickSize() == null || i.tickSize().signum() < 0 || i.lotSize() < 0) {
+      return "negative or missing tick size or lot size";
+    }
+    return null;
+  }
 
-    Map<String, Long> existing = repository.tokensBySymbol(rules.exchange());
+  /** Identity used to match file rows to stored rows. */
+  static String identity(Instrument i) {
+    return i.isIndex() ? "INDEX|" + i.tradingSymbol() : "ISIN|" + i.isin();
+  }
+
+  private Result store(List<Instrument> instruments, List<String> rejected, LocalDate today) {
     repository
         .lastLoadBefore(rules.exchange(), today)
         .ifPresent(previous -> checkShrink(instruments.size(), previous));
 
-    Map<Long, String> previousOwner = new HashMap<>();
-    existing.forEach((symbol, token) -> {
-      if (token != null) {
-        previousOwner.put(token, symbol);
-      }
-    });
-
+    Map<String, String> existing = repository.symbolsByIdentity(rules.exchange());
     int added = 0;
-    List<String> tokenMoves = new ArrayList<>();
+    List<String> renamed = new ArrayList<>();
     Set<String> inFile = new HashSet<>();
     for (Instrument i : instruments) {
-      inFile.add(i.tradingSymbol());
-      if (!existing.containsKey(i.tradingSymbol())) {
+      String id = identity(i);
+      inFile.add(id);
+      String oldSymbol = existing.get(id);
+      if (oldSymbol == null) {
         added++;
-      }
-      String owner = previousOwner.get(i.kiteInstrumentToken());
-      if (owner != null && !owner.equals(i.tradingSymbol())) {
-        tokenMoves.add(owner + " -> " + i.tradingSymbol());
+      } else if (!oldSymbol.equals(i.tradingSymbol())) {
+        renamed.add(oldSymbol + " -> " + i.tradingSymbol() + " (" + i.isin() + ")");
       }
     }
-    int notInFile = (int) existing.keySet().stream().filter(s -> !inFile.contains(s)).count();
+    int notInFile = (int) existing.keySet().stream().filter(id -> !inFile.contains(id)).count();
 
-    repository.upsertAll(instruments, today);
+    repository.upsertAll(instruments, feed.provider(), today);
     return new Result(
+        feed.provider(),
         today,
         instruments.size(),
         added,
         instruments.size() - added,
         notInFile,
-        List.copyOf(tokenMoves));
+        List.copyOf(renamed),
+        List.copyOf(rejected));
   }
 
-  private void checkFile(List<Instrument> instruments) {
-    if (instruments.size() < rules.minRows()) {
-      throw new InstrumentFileException(
-          "only " + instruments.size() + " rows, expected at least " + rules.minRows());
-    }
-    Set<Long> tokens = new HashSet<>();
-    Set<String> symbols = new HashSet<>();
+  /**
+   * Checks the whole file. File-level faults (wrong exchange, duplicates, too many rejected or too
+   * few accepted rows) fail the load; row-level faults reject only that row. Returns accepted rows.
+   */
+  private List<Instrument> checkFile(List<Instrument> instruments, List<String> rejected) {
+    List<Instrument> accepted = new ArrayList<>();
+    Set<String> identities = new HashSet<>();
+    Set<String> providerKeys = new HashSet<>();
+    Set<String> seriesSymbols = new HashSet<>();
     for (Instrument i : instruments) {
+      String where = i.tradingSymbol() + " (" + i.providerKey() + ")";
       if (!Objects.equals(i.exchange(), rules.exchange())) {
         throw new InstrumentFileException(
-            i.tradingSymbol() + " is on " + i.exchange() + ", expected " + rules.exchange());
+            where + " is on " + i.exchange() + ", expected " + rules.exchange());
       }
-      if (!symbols.add(i.tradingSymbol())) {
-        throw new InstrumentFileException("symbol " + i.tradingSymbol() + " appears twice");
+      String fault = rowFault(i);
+      if (fault != null) {
+        rejected.add(where + ": " + fault);
+        continue;
       }
-      if (!tokens.add(i.kiteInstrumentToken())) {
+      if (!identities.add(identity(i))) {
+        throw new InstrumentFileException(where + ": " + identity(i) + " appears twice");
+      }
+      if (!providerKeys.add(i.providerKey())) {
+        throw new InstrumentFileException("provider key " + i.providerKey() + " appears twice");
+      }
+      if (!seriesSymbols.add(i.series() + "|" + i.tradingSymbol())) {
         throw new InstrumentFileException(
-            "Kite token " + i.kiteInstrumentToken() + " appears twice in one file");
+            "symbol " + i.tradingSymbol() + " appears twice in series " + i.series());
       }
+      accepted.add(i);
     }
+    if (rejected.size() > rules.maxRejected()) {
+      throw new InstrumentFileException(
+          rejected.size()
+              + " rows rejected, more than the "
+              + rules.maxRejected()
+              + " allowed; first: "
+              + rejected.get(0));
+    }
+    if (accepted.size() < rules.minRows()) {
+      throw new InstrumentFileException(
+          "only " + accepted.size() + " valid rows, expected at least " + rules.minRows());
+    }
+    return accepted;
   }
 
   private void checkShrink(int rows, LocalDate previous) {

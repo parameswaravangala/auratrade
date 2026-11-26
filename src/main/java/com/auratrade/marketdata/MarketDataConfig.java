@@ -63,23 +63,36 @@ class MarketDataConfig {
   }
 
   /**
-   * Instrument master loader. Defaults: the Kite NSE file, at least 5,000 rows, and at most a 10%
-   * drop since the previous load. Override with auratrade.marketdata.instruments.*.
+   * The instrument feed in use (ADR 0015). The loader depends only on {@link InstrumentFeed}, so
+   * changing provider means changing this bean.
+   */
+  @Bean
+  InstrumentFeed instrumentFeed(
+      @Value(
+              "${auratrade.marketdata.upstox.instruments-url:"
+                  + "https://assets.upstox.com/market-quote/instruments/exchange/NSE.json.gz}")
+          URI url) {
+    return new UpstoxInstrumentFeed(url, Duration.ofSeconds(60));
+  }
+
+  /**
+   * Instrument master loader. Defaults: at least 5,000 valid rows, at most a 10% drop since the
+   * previous load, and at most 25 rejected rows. Override with auratrade.marketdata.instruments.*.
    */
   @Bean
   InstrumentLoader instrumentLoader(
-      @Value("${auratrade.marketdata.instruments.url:https://api.kite.trade/instruments/NSE}")
-          URI url,
+      InstrumentFeed feed,
       @Value("${auratrade.marketdata.instruments.min-rows:5000}") int minRows,
       @Value("${auratrade.marketdata.instruments.max-shrink:0.10}") double maxShrink,
+      @Value("${auratrade.marketdata.instruments.max-rejected:25}") int maxRejected,
       InstrumentRepository repository,
       PlatformTransactionManager transactions,
       Clock clock) {
     return new InstrumentLoader(
-        new KiteInstrumentSource(url, Duration.ofSeconds(30)),
+        feed,
         repository,
         new TransactionTemplate(transactions),
         clock,
-        new InstrumentLoader.Rules("NSE", minRows, maxShrink));
+        new InstrumentLoader.Rules("NSE", minRows, maxShrink, maxRejected));
   }
 }

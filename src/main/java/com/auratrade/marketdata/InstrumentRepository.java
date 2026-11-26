@@ -10,7 +10,11 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-/** Plain JDBC access to the instrument table (ADR 0013). */
+/**
+ * Plain JDBC access to the instrument master (ADR 0013, 0015). Securities are identified by
+ * (exchange, isin), indices by (exchange, segment, trading_symbol). Provider keys are kept in
+ * instrument_provider_key.
+ */
 public class InstrumentRepository {
 
   private final JdbcClient jdbc;
@@ -21,15 +25,20 @@ public class InstrumentRepository {
     this.batch = batch;
   }
 
-  /** Symbol to Kite token for every instrument on the exchange, active or not. */
-  Map<String, Long> tokensBySymbol(String exchange) {
-    Map<String, Long> out = new HashMap<>();
+  /** Identity (see {@link InstrumentLoader#identity}) to current symbol, active or not. */
+  Map<String, String> symbolsByIdentity(String exchange) {
+    Map<String, String> out = new HashMap<>();
     jdbc.sql(
-            "select trading_symbol, kite_instrument_token from instrument where exchange = :exchange")
+            """
+            select case when isin is not null then 'ISIN|' || isin
+                        else 'INDEX|' || trading_symbol end,
+                   trading_symbol
+            from instrument
+            where exchange = :exchange and (isin is not null or segment = 'INDEX')
+            """)
         .param("exchange", exchange)
         .query(rs -> {
-          long token = rs.getLong(2);
-          out.put(rs.getString(1), rs.wasNull() ? null : token);
+          out.put(rs.getString(1), rs.getString(2));
         });
     return out;
   }
@@ -54,43 +63,91 @@ public class InstrumentRepository {
         .single();
   }
 
-  /** Inserts new instruments and refreshes existing ones; first_seen_on is never changed. */
-  void upsertAll(List<Instrument> instruments, LocalDate seenOn) {
-    SqlParameterSource[] params =
-        instruments.stream()
-            .map(i ->
-                new MapSqlParameterSource()
-                    .addValue("exchange", i.exchange())
-                    .addValue("symbol", i.tradingSymbol())
-                    .addValue("series", i.series())
-                    .addValue("segment", i.segment())
-                    .addValue("type", i.instrumentType())
-                    .addValue("name", i.name())
-                    .addValue("token", i.kiteInstrumentToken())
-                    .addValue("exchangeToken", i.exchangeToken())
-                    .addValue("tick", i.tickSize())
-                    .addValue("lot", i.lotSize())
-                    .addValue("seen", seenOn))
-            .toArray(SqlParameterSource[]::new);
+  /**
+   * Inserts new instruments and refreshes existing ones (first_seen_on never changes), then records
+   * each instrument's key at {@code provider}.
+   */
+  void upsertAll(List<Instrument> instruments, String provider, LocalDate seenOn) {
+    SqlParameterSource[] securities = params(instruments, false, provider, seenOn);
+    SqlParameterSource[] indices = params(instruments, true, provider, seenOn);
+
     batch.batchUpdate(
         """
-        insert into instrument (exchange, trading_symbol, series, segment, instrument_type, name,
-                                kite_instrument_token, exchange_token, tick_size, lot_size,
-                                first_seen_on, last_seen_on)
-        values (:exchange, :symbol, :series, :segment, :type, :name, :token, :exchangeToken,
+        insert into instrument (exchange, segment, trading_symbol, series, instrument_type, name,
+                                isin, exchange_token, tick_size, lot_size, first_seen_on,
+                                last_seen_on)
+        values (:exchange, :segment, :symbol, :series, :series, :name, :isin, :exchangeToken,
                 :tick, :lot, :seen, :seen)
-        on conflict (exchange, trading_symbol) do update set
-          series = excluded.series,
+        on conflict (exchange, isin) where isin is not null do update set
           segment = excluded.segment,
+          trading_symbol = excluded.trading_symbol,
+          series = excluded.series,
           instrument_type = excluded.instrument_type,
           name = excluded.name,
-          kite_instrument_token = excluded.kite_instrument_token,
           exchange_token = excluded.exchange_token,
           tick_size = excluded.tick_size,
           lot_size = excluded.lot_size,
           last_seen_on = greatest(instrument.last_seen_on, excluded.last_seen_on)
         """,
-        params);
+        securities);
+    batch.batchUpdate(
+        """
+        insert into instrument (exchange, segment, trading_symbol, series, instrument_type, name,
+                                isin, exchange_token, tick_size, lot_size, first_seen_on,
+                                last_seen_on)
+        values (:exchange, :segment, :symbol, :series, :series, :name, null, :exchangeToken,
+                :tick, :lot, :seen, :seen)
+        on conflict (exchange, segment, trading_symbol) where isin is null do update set
+          series = excluded.series,
+          instrument_type = excluded.instrument_type,
+          name = excluded.name,
+          exchange_token = excluded.exchange_token,
+          tick_size = excluded.tick_size,
+          lot_size = excluded.lot_size,
+          last_seen_on = greatest(instrument.last_seen_on, excluded.last_seen_on)
+        """,
+        indices);
+
+    SqlParameterSource[] all = params(instruments, null, provider, seenOn);
+    batch.batchUpdate(
+        """
+        insert into instrument_provider_key (provider, provider_key, instrument_id,
+                                             first_seen_on, last_seen_on)
+        select :provider, :providerKey, i.id, :seen, :seen
+        from instrument i
+        where i.exchange = :exchange
+          and (i.isin = cast(:isin as text)
+               or (cast(:isin as text) is null and i.isin is null
+                   and i.segment = :segment and i.trading_symbol = :symbol))
+        on conflict (provider, provider_key) do update set
+          instrument_id = excluded.instrument_id,
+          last_seen_on = greatest(instrument_provider_key.last_seen_on, excluded.last_seen_on)
+        """,
+        all);
+  }
+
+  /**
+   * @param indices true for indices only, false for securities only, null for all
+   */
+  private static SqlParameterSource[] params(
+      List<Instrument> instruments, Boolean indices, String provider, LocalDate seenOn) {
+    return instruments.stream()
+        .filter(i -> indices == null || i.isIndex() == indices)
+        .map(i ->
+            new MapSqlParameterSource()
+                .addValue("exchange", i.exchange())
+                .addValue("segment", i.segment())
+                .addValue("symbol", i.tradingSymbol())
+                .addValue("series", i.series())
+                .addValue("name", i.name())
+                .addValue("isin", i.isin())
+                .addValue("exchangeToken", i.exchangeToken())
+                .addValue("tick", i.tickSize())
+                .addValue("lot", i.lotSize())
+                .addValue("provider", provider)
+                .addValue("providerKey", i.providerKey())
+                .addValue("seen", seenOn))
+        .toArray(SqlParameterSource[]::new);
   }
 
   /** Instrument counts per series, split into active (seen on the latest load) and inactive. */

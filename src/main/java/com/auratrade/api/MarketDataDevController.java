@@ -39,7 +39,7 @@ class MarketDataDevController {
     this.resolver = resolver;
   }
 
-  /** Downloads the Kite NSE instruments file, upserts it, and rebuilds the resolver. */
+  /** Downloads the instrument file from the configured feed, upserts it, rebuilds the resolver. */
   @PostMapping("/instruments/load")
   InstrumentLoader.Result load() {
     InstrumentLoader.Result result = loader.load();

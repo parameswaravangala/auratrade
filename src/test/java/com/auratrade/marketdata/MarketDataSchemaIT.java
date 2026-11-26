@@ -29,20 +29,24 @@ class MarketDataSchemaIT extends PostgresIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    jdbc.sql("truncate candle, instrument_alias, instrument restart identity").update();
-    instrumentId = insertInstrument("TESTCO");
+    jdbc.sql(
+            "truncate candle, instrument_alias, instrument_provider_key, instrument"
+                + " restart identity")
+        .update();
+    instrumentId = insertInstrument("TESTCO", InstrumentLoaderIT.isin(1));
   }
 
-  private long insertInstrument(String symbol) {
+  private long insertInstrument(String symbol, String isin) {
     return jdbc.sql(
             """
             insert into instrument (exchange, trading_symbol, series, segment, instrument_type,
-                                    name, tick_size, lot_size, first_seen_on, last_seen_on)
-            values ('NSE', :symbol, 'EQ', 'NSE', 'EQ', 'Test Company', 0.01, 1,
+                                    name, isin, tick_size, lot_size, first_seen_on, last_seen_on)
+            values ('NSE', :symbol, 'EQ', 'EQ', 'EQ', 'Test Company', :isin, 0.01, 1,
                     :seen, :seen)
             returning id
             """)
         .param("symbol", symbol)
+        .param("isin", isin)
         .param("seen", LocalDate.parse("2026-01-23"))
         .query(Long.class)
         .single();
@@ -133,8 +137,16 @@ class MarketDataSchemaIT extends PostgresIntegrationTest {
   }
 
   @Test
-  void symbolsAreUniquePerExchange() {
-    assertThatThrownBy(() -> insertInstrument("TESTCO"))
+  void isinsAreUniquePerExchangeButSymbolsNeedNotBe() {
+    assertThatThrownBy(() -> insertInstrument("OTHER", InstrumentLoaderIT.isin(1)))
+        .isInstanceOf(DataIntegrityViolationException.class);
+    // A share and its warrants can share a symbol; the ISIN tells them apart.
+    assertThat(insertInstrument("TESTCO", InstrumentLoaderIT.isin(2))).isPositive();
+  }
+
+  @Test
+  void rejectsAMalformedIsin() {
+    assertThatThrownBy(() -> insertInstrument("BAD", "not-an-isin"))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 }
