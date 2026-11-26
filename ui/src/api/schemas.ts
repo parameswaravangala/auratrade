@@ -274,3 +274,101 @@ export const SweepReport = z.object({
   caveats: z.array(z.string()),
 });
 export type SweepReport = z.infer<typeof SweepReport>;
+
+// ---- Paper trading (ADR 0024), /api/v1/paper. Money arrives as JSON numbers; display only. ----
+
+/** com.auratrade.paperbroker.PaperRepository.Account. riskPerTrade and maxPosition are fractions. */
+export const PaperAccount = z.object({
+  id: z.number(),
+  name: z.string(),
+  screen: z.string(),
+  initialCapital: z.number(),
+  cash: z.number(),
+  maxPositions: z.number(),
+  riskPerTrade: z.number(),
+  maxPosition: z.number(),
+  atrMultiple: z.number(),
+  maxHoldSessions: z.number(),
+  regimeFilter: z.boolean(),
+  slippageBps: z.number(),
+  goLiveCriteria: z.string().nullable(),
+  startedOn: isoDate,
+  active: z.boolean(),
+});
+export type PaperAccount = z.infer<typeof PaperAccount>;
+export const PaperAccounts = z.array(PaperAccount);
+
+export const ORDER_STATUSES = ["PROPOSED", "APPROVED", "REJECTED", "EXPIRED", "FILLED", "UNFILLED"] as const;
+
+/** com.auratrade.paperbroker.PaperRepository.Order */
+export const PaperOrder = z.object({
+  id: z.number(),
+  accountId: z.number(),
+  instrumentId: z.number(),
+  symbol: z.string(),
+  side: z.enum(["BUY", "SELL"]),
+  quantity: z.number(),
+  reason: z.string(),
+  signalDate: isoDate,
+  fillDate: isoDate,
+  stopPrice: dec,
+  score: dec,
+  detail: z.string().nullable(),
+  status: z.enum(ORDER_STATUSES),
+  decidedAt: instant.nullable(),
+  decidedBy: z.string().nullable(),
+  fillPrice: dec,
+  fillCosts: dec,
+  statusNote: z.string().nullable(),
+});
+export type PaperOrder = z.infer<typeof PaperOrder>;
+export const PaperOrders = z.array(PaperOrder);
+
+/** com.auratrade.paperbroker.PaperRepository.Position */
+export const PaperPosition = z.object({
+  accountId: z.number(),
+  instrumentId: z.number(),
+  symbol: z.string(),
+  quantity: z.number(),
+  entryPrice: z.number(),
+  entryDate: isoDate,
+  entryCosts: z.number(),
+  stopPrice: z.number(),
+  sessionsHeld: z.number(),
+});
+export type PaperPosition = z.infer<typeof PaperPosition>;
+
+/** com.auratrade.paperbroker.PaperRepository.EquityPoint, recorded at each session's close. */
+export const PaperEquityPoint = z.object({
+  date: isoDate,
+  cash: z.number(),
+  equity: z.number(),
+  positions: z.number(),
+});
+export type PaperEquityPoint = z.infer<typeof PaperEquityPoint>;
+
+/** PaperTradingController.AccountView */
+export const PaperAccountView = z.object({
+  account: PaperAccount,
+  positions: z.array(PaperPosition),
+  proposed: z.array(PaperOrder),
+  equity: z.array(PaperEquityPoint),
+});
+export type PaperAccountView = z.infer<typeof PaperAccountView>;
+
+/** com.auratrade.paperbroker.PaperRepository.Trade, a closed round trip in the journal. */
+export const PaperTrade = z.object({
+  id: z.number(),
+  symbol: z.string(),
+  quantity: z.number(),
+  entryDate: isoDate,
+  entryPrice: z.number(),
+  exitDate: isoDate,
+  exitPrice: z.number(),
+  exitReason: z.string(),
+  sessionsHeld: z.number(),
+  costs: z.number(),
+  netPnl: z.number(),
+});
+export type PaperTrade = z.infer<typeof PaperTrade>;
+export const PaperTrades = z.array(PaperTrade);

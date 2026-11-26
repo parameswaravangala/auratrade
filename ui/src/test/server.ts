@@ -1,6 +1,20 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { PORTFOLIO, RUNS, SCREENS, SERIES, SHARE, SHORTLIST, SPEND, SWEEP } from "./fixtures";
+import {
+  DECIDED,
+  PAPER_ACCOUNT,
+  PAPER_TRADES,
+  PAPER_VIEW,
+  PORTFOLIO,
+  PROPOSED,
+  RUNS,
+  SCREENS,
+  SERIES,
+  SHARE,
+  SHORTLIST,
+  SPEND,
+  SWEEP,
+} from "./fixtures";
 
 /** A fake backend for component tests (like WireMock). Tests override handlers with server.use(). */
 export const handlers = [
@@ -28,6 +42,10 @@ export const handlers = [
   ),
   http.get("*/dev/backtest/portfolio", () => HttpResponse.json(PORTFOLIO)),
   http.get("*/dev/backtest/sweep", () => HttpResponse.json(SWEEP)),
+  http.get("*/api/v1/paper/accounts", () => HttpResponse.json([PAPER_ACCOUNT])),
+  http.get("*/api/v1/paper/accounts/:id", () => HttpResponse.json(PAPER_VIEW)),
+  http.get("*/api/v1/paper/accounts/:id/orders", () => HttpResponse.json([...PROPOSED, ...DECIDED])),
+  http.get("*/api/v1/paper/accounts/:id/trades", () => HttpResponse.json(PAPER_TRADES)),
 ];
 
 export const server = setupServer(...handlers);

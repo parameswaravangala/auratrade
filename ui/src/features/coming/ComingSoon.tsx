@@ -1,7 +1,7 @@
 import { NAV } from "@/app/nav";
 import { Panel } from "@/components/Panel";
 
-type Path = "/research" | "/approvals" | "/portfolio" | "/agents" | "/calendar";
+type Path = "/research" | "/agents" | "/calendar";
 
 const PLANS: Record<Path, { what: string; shows: string[]; needs: string[] }> = {
   "/research": {
@@ -12,24 +12,6 @@ const PLANS: Record<Path, { what: string; shows: string[]; needs: string[] }> = 
       "thesis draft with evidence and confidence",
     ],
     needs: ["news ingestion", "NEWS_TRIAGE and STOCK_ANALYSIS agents", "GET /api/v1/research/*"],
-  },
-  "/approvals": {
-    what: "Every paper order waits here for your decision: signal, sizing and risk review are shown first. Nothing reaches a broker (ADR 0005).",
-    shows: [
-      "proposal cards with signal → sizing → risk review → you",
-      "stop, entry and target on one line",
-      "blocked proposals when RISK_REVIEW fails closed",
-    ],
-    needs: [
-      "paper order model",
-      "RISK_REVIEW agent",
-      "auth and an audit trail before any approve button exists",
-    ],
-  },
-  "/portfolio": {
-    what: "Paper equity, open positions on a stop-entry-now-target line, exposure by sector and a decision journal.",
-    shows: ["baseline equity curve", "positions with R-multiples", "exposure donut and journal"],
-    needs: ["paper trading ledger", "GET /api/v1/portfolio"],
   },
   "/agents": {
     what: "Each agent's tier, floor and daily token cap, token flow by tier, call traces and the eval golden set.",

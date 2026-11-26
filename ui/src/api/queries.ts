@@ -11,6 +11,11 @@ import {
   JobRuns,
   JobTriggered,
   LlmResult,
+  PaperAccounts,
+  PaperAccountView,
+  PaperOrder,
+  PaperOrders,
+  PaperTrades,
   PortfolioReport,
   Resolution,
   ScreenInfos,
@@ -34,6 +39,11 @@ export const keys = {
   shortlist: (screen: string) => ["screener", "run", screen] as const,
   portfolio: (p: PortfolioParams) => ["backtest", "portfolio", p] as const,
   sweep: (p: SweepParams) => ["backtest", "sweep", p] as const,
+  paper: ["paper"] as const,
+  paperAccounts: ["paper", "accounts"] as const,
+  paperAccount: (id: number) => ["paper", "account", id] as const,
+  paperOrders: (id: number) => ["paper", "orders", id] as const,
+  paperTrades: (id: number) => ["paper", "trades", id] as const,
 };
 
 export function useHealth() {
@@ -229,3 +239,64 @@ const EMPTY_PORTFOLIO: PortfolioParams = {
   costs: true,
 };
 const EMPTY_SWEEP: SweepParams = { screen: "", from: "", split: "", to: "" };
+
+// ---- Paper trading (ADR 0024). Code proposes, a person decides every order. ----
+
+const PAPER = "/api/v1/paper";
+
+export function usePaperAccounts() {
+  return useQuery({
+    queryKey: keys.paperAccounts,
+    queryFn: ({ signal }) => getJson(`${PAPER}/accounts`, PaperAccounts, { signal }),
+    staleTime: 60_000,
+  });
+}
+
+/** One account with its positions, proposed orders and equity. Refreshes each minute. */
+export function usePaperAccount(id: number | undefined) {
+  return useQuery({
+    queryKey: keys.paperAccount(id ?? 0),
+    queryFn: ({ signal }) => getJson(`${PAPER}/accounts/${String(id)}`, PaperAccountView, { signal }),
+    enabled: id !== undefined,
+    refetchInterval: 60_000,
+  });
+}
+
+/** The account's newest orders in every status, for the decision log. */
+export function usePaperOrders(id: number | undefined, limit = 50) {
+  return useQuery({
+    queryKey: keys.paperOrders(id ?? 0),
+    queryFn: ({ signal }) =>
+      getJson(`${PAPER}/accounts/${String(id)}/orders?limit=${limit}`, PaperOrders, { signal }),
+    enabled: id !== undefined,
+    refetchInterval: 60_000,
+  });
+}
+
+export function usePaperTrades(id: number | undefined) {
+  return useQuery({
+    queryKey: keys.paperTrades(id ?? 0),
+    queryFn: ({ signal }) => getJson(`${PAPER}/accounts/${String(id)}/trades`, PaperTrades, { signal }),
+    enabled: id !== undefined,
+  });
+}
+
+export type Decision = { orderId: number; approve: boolean; by: string; note: string };
+
+/**
+ * Approves or rejects one PROPOSED order. The backend refuses after 09:15 IST on the fill date and
+ * records who decided and why. Never retried: a decision is sent once, on a person's click.
+ */
+export function useDecide() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (d: Decision) =>
+      getJson(`${PAPER}/orders/${String(d.orderId)}/${d.approve ? "approve" : "reject"}`, PaperOrder, {
+        method: "POST",
+        body: JSON.stringify({ by: d.by, note: d.note }),
+        contentType: "application/json",
+      }),
+    retry: false,
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.paper }),
+  });
+}

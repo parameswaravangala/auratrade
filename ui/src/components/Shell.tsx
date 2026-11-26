@@ -32,7 +32,7 @@ export function Shell() {
   return (
     <>
       <Aura />
-      <div className="relative z-[1] grid h-full grid-cols-[72px_1fr] grid-rows-[56px_1fr]">
+      <div className="relative z-[1] grid h-full grid-cols-[72px_minmax(0,1fr)] grid-rows-[56px_1fr]">
         <nav
           aria-label="Main"
           className="row-span-2 flex flex-col items-center gap-2 border-r border-line bg-s1 py-3.5 backdrop-blur-xl"
@@ -74,7 +74,7 @@ export function Shell() {
         </nav>
 
         <header className="flex items-center gap-3.5 border-b border-line bg-s1 px-5 backdrop-blur-xl">
-          <h1 className="m-0 text-[15px] font-semibold whitespace-nowrap">
+          <h1 className="m-0 min-w-0 truncate text-[15px] font-semibold whitespace-nowrap">
             {current?.label ?? "About"}
             <small className="ml-1.5 font-medium text-tx3">
               {current?.subtitle ?? "licences and notices"}
@@ -85,7 +85,7 @@ export function Shell() {
             onClick={() => {
               setPaletteOpen(true);
             }}
-            className="ml-2 flex h-[34px] w-[min(400px,40vw)] cursor-pointer items-center gap-2 rounded-[10px] border border-line bg-s2 px-3 text-tx3"
+            className="ml-2 flex h-[34px] w-[min(400px,40vw)] shrink-0 cursor-pointer items-center gap-2 rounded-[10px] border border-line bg-s2 px-3 text-tx3"
           >
             <Search size={16} />
             <span className="truncate">Jump to, run, resolve…</span>
