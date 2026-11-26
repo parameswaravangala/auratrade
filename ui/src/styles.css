@@ -1,0 +1,233 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+/* Design tokens (ADR 0019). Dark first; light mode swaps the same names. */
+:root,
+[data-theme="dark"] {
+  --bg: #04060c;
+  --s1: rgba(14, 19, 32, 0.66);
+  --s2: rgba(24, 31, 50, 0.8);
+  --line: rgba(148, 163, 184, 0.11);
+  --line2: rgba(148, 163, 184, 0.22);
+  --tx: #e7ecf6;
+  --tx2: #8a94a8;
+  --tx3: #556078;
+  --a: #22d3ee;
+  --b: #a78bfa;
+  --c: #f472b6;
+  --up: #2dd4a4;
+  --dn: #fb5a76;
+  --warn: #fbbf24;
+  --grid: rgba(148, 163, 184, 0.06);
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+[data-theme="light"] {
+  --bg: #eef1f8;
+  --s1: rgba(255, 255, 255, 0.74);
+  --s2: #ffffff;
+  --line: rgba(15, 23, 42, 0.08);
+  --line2: rgba(15, 23, 42, 0.16);
+  --tx: #0d1526;
+  --tx2: #4f5a72;
+  --tx3: #8b95a9;
+  --a: #0891b2;
+  --b: #7c3aed;
+  --c: #db2777;
+  --up: #059669;
+  --dn: #e11d48;
+  --warn: #d97706;
+  --grid: rgba(15, 23, 42, 0.05);
+  --shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
+  color-scheme: light;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --color-bg: var(--bg);
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-tx: var(--tx);
+  --color-tx2: var(--tx2);
+  --color-tx3: var(--tx3);
+  --color-a: var(--a);
+  --color-b: var(--b);
+  --color-c: var(--c);
+  --color-up: var(--up);
+  --color-dn: var(--dn);
+  --color-warn: var(--warn);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--tx);
+  font: 13px/1.45 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Glass panel */
+.glass {
+  background: var(--s1);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  backdrop-filter: blur(22px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.panel-in {
+  animation: rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+    filter: blur(4px);
+  }
+}
+
+.tag {
+  font: 10px var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--line2);
+  color: var(--tx2);
+  white-space: nowrap;
+}
+.tag-a {
+  color: var(--a);
+  border-color: color-mix(in srgb, var(--a) 40%, transparent);
+}
+.tag-b {
+  color: var(--b);
+  border-color: color-mix(in srgb, var(--b) 40%, transparent);
+}
+.tag-w {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+}
+.tag-r {
+  color: var(--dn);
+  border-color: color-mix(in srgb, var(--dn) 45%, transparent);
+}
+.tag-g {
+  color: var(--up);
+  border-color: color-mix(in srgb, var(--up) 45%, transparent);
+}
+
+.pill {
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tx2);
+  white-space: nowrap;
+}
+.pill-paper {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dot-live {
+  background: var(--up);
+  box-shadow: 0 0 8px var(--up);
+  animation: blink 2.4s infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line2);
+  background: var(--s2);
+  color: var(--tx);
+  font: 600 12px var(--font-sans);
+  cursor: pointer;
+  transition: 0.2s;
+}
+.btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--a) 45%, transparent);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-pri {
+  border: 0;
+  color: #04060c;
+  background: linear-gradient(135deg, var(--a), var(--b));
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--a) 25%, transparent);
+}
+:focus-visible {
+  outline: 2px solid var(--a);
+  outline-offset: 2px;
+}
+
+/* Animated SVG helpers */
+.edge-live {
+  stroke-dasharray: 4 6;
+  animation: dash 1.2s linear infinite;
+}
+@keyframes dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+.spin {
+  animation: spin 6s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.shimmer {
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

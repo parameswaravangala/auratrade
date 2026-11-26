@@ -1,6 +1,6 @@
 # ADR 0019: Web UI stack, location, look and backend contract
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-26
 
 ## Context
@@ -24,9 +24,12 @@ and one CI run, which suits a solo project.
 
 ## Decision
 
-1. **React 19 + TypeScript (strict) + Vite**, in **`ui/`** in this repo, with **npm** (ships with Node 24
-   LTS). React Compiler on (automatic memoisation). CI gets a separate `ui` job: install, lint,
-   type-check, test, build.
+1. **React 19 + TypeScript (strict) + Vite 8**, in **`ui/`** in this repo, with **npm** (ships with Node 24
+   LTS). CI gets a separate `ui` job: install, lint, type-check, test, build.
+   - TypeScript 6.0, not 7.0: typescript-eslint 8.72 supports TypeScript below 6.1 only (checked
+     2026-11-26). Move to 7 when it does.
+   - React Compiler (automatic memoisation) is deferred: on Vite 8 it needs Babel back through
+     `@rolldown/plugin-babel`. It is an optimisation; add it when a screen needs it.
 2. **Libraries.** Licences checked at the npm registry and upstream repos on 2026-11-26; all free and
    permissive. We pin versions at least two weeks old.
 
@@ -51,6 +54,9 @@ and one CI run, which suits a solo project.
    | Workbench | Storybook 10 (later) | MIT | |
    | End-to-end, visual regression | Playwright (later) | Apache-2.0 | Selenium |
 
+   Slice 1 installs only what its screens use; dockview, Motion, ECharts and TanStack Table/Virtual
+   come in with the first screen that needs them.
+
    Lightweight Charts' licence requires its NOTICE attribution and a link to tradingview.com on a page
    users can see: we keep the chart's `attributionLogo` on and list notices on an About page.
    Three.js / React Three Fiber (MIT) stay out until a view truly needs 3D.
@@ -74,6 +80,9 @@ and one CI run, which suits a solo project.
      cyan/violet/pink aura (canvas), glass panels, hairline borders; Inter for text, JetBrains Mono with
      tabular figures for every number; motion 150 to 600 ms and off under `prefers-reduced-motion`.
      Synthetic data and fictional names are always labelled.
+   - Considered and not chosen: an immersive concept reel (3D "market galaxy" in WebGL, an AI that
+     composes the screen, an agent debate room, a replay time machine). The owner preferred the
+     cockpit. It stays in git history (commit 63d7dbf, `docs/ui/concepts.html`) for later ideas.
 4. **Backend contract**
    - REST and JSON over **same origin**. In development Vite proxies `/api` and `/dev` to
      `localhost:8080`, so no CORS. In production Spring Boot (or a reverse proxy) serves the built
@@ -116,4 +125,8 @@ and one CI run, which suits a solo project.
   String decimals in `/api/v1` remove the float risk.
 - Several signature panels (pipeline map, copilot, narrative) need `/api/v1` endpoints; until then
   they show what the dev endpoints allow, or a clearly marked "coming" state.
+- Transitive licences (checked from `ui/package-lock.json` on 2026-11-26): all permissive (MIT, ISC,
+  Apache-2.0, BSD, 0BSD, BlueOak, CC0, Unlicense) except build-time tools that never ship in the
+  bundle: lightningcss (MPL-2.0, Tailwind's CSS compiler) and caniuse-lite (CC-BY-4.0 data).
+- jsdom is pinned to 29.x because 30 and later need Node 24.15+; move up with Node.
 - Revisit: production packaging, auth, OpenAPI type generation, Storybook, Playwright, 3D.
