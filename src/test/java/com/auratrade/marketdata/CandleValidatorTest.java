@@ -150,4 +150,48 @@ class CandleValidatorTest {
     org.assertj.core.api.Assertions.assertThatThrownBy(() -> check(later))
         .isInstanceOf(CalendarNotCoveredException.class);
   }
+
+  @Test
+  void dailyCandlesMustBeStampedAtIstMidnight() {
+    var atOpen =
+        new Candle(
+            java.time.LocalDateTime.parse("2026-01-23T09:15:00")
+                .atZone(com.auratrade.platform.time.MarketZones.IST)
+                .toInstant(),
+            BigDecimal.TEN,
+            BigDecimal.TEN,
+            BigDecimal.TEN,
+            BigDecimal.TEN,
+            1);
+
+    assertThat(validator.validate(Interval.DAY, List.of(atOpen)).count("DAY_NOT_AT_MIDNIGHT"))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void placeholderBarsOnClosedDaysAreDroppedWithAWarning() {
+    var friday = day("2026-01-23", "100", "101", "99", "100", 10);
+    var saturdayPlaceholder = day("2026-01-24", "100", "100", "100", "100", 0);
+    var tuesday = day("2026-01-27", "100", "101", "99", "100", 10);
+
+    var cleaned =
+        validator.dropPlaceholderBars(Interval.DAY, List.of(friday, saturdayPlaceholder, tuesday));
+
+    assertThat(cleaned.kept()).containsExactly(friday, tuesday);
+    assertThat(cleaned.dropped())
+        .singleElement()
+        .extracting(QualityIssue::code)
+        .isEqualTo("PLACEHOLDER_BAR_DROPPED");
+  }
+
+  @Test
+  void aClosedDayBarWithVolumeIsKeptAndStillAnError() {
+    var saturdayTrade = day("2026-01-24", "100", "101", "99", "100", 500);
+
+    var cleaned = validator.dropPlaceholderBars(Interval.DAY, List.of(saturdayTrade));
+
+    assertThat(cleaned.kept()).containsExactly(saturdayTrade);
+    assertThat(validator.validate(Interval.DAY, cleaned.kept()).count("NOT_TRADING_DAY"))
+        .isEqualTo(1);
+  }
 }

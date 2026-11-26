@@ -11,7 +11,8 @@ import java.util.List;
  * Checks a series of candles (one instrument, one interval, oldest first) before it is used.
  *
  * <p>ERROR codes: NON_POSITIVE_PRICE, OHLC_INCONSISTENT, NEGATIVE_VOLUME, DUPLICATE_TIMESTAMP,
- * OUT_OF_ORDER, NOT_TRADING_DAY, OUTSIDE_SESSION. WARNING codes: MISSING_TRADING_DAY (DAY only),
+ * OUT_OF_ORDER, NOT_TRADING_DAY, OUTSIDE_SESSION, DAY_NOT_AT_MIDNIGHT. WARNING codes:
+ * MISSING_TRADING_DAY (DAY only), PLACEHOLDER_BAR_DROPPED (from {@link #dropPlaceholderBars}),
  * EXTREME_MOVE, STALE_PRICE (DAY only).
  *
  * <p>An EXTREME_MOVE is expected around splits and bonuses until corporate-action adjustment exists
@@ -28,6 +29,35 @@ public final class CandleValidator {
     this.rules = rules;
   }
 
+  /** Candles kept after removing provider placeholders, and a warning for each one removed. */
+  public record Cleaned(List<Candle> kept, List<QualityIssue> dropped) {}
+
+  /**
+   * Removes daily placeholder bars: a bar on a day the calendar says was closed, with zero volume
+   * and open = high = low = close. Such a bar cannot be a trade; Upstox returns them on some closed
+   * days (seen on Saturday 2025-04-26). Each removal is a PLACEHOLDER_BAR_DROPPED warning. A bar on
+   * a closed day that has volume is kept, so {@link #validate} still reports NOT_TRADING_DAY.
+   */
+  public Cleaned dropPlaceholderBars(Interval interval, List<Candle> candles) {
+    if (interval != Interval.DAY) {
+      return new Cleaned(candles, List.of());
+    }
+    List<Candle> kept = new ArrayList<>(candles.size());
+    List<QualityIssue> dropped = new ArrayList<>();
+    for (Candle c : candles) {
+      if (isFlatAndEmpty(c) && !calendar.isTradingDay(c.tradingDate())) {
+        dropped.add(
+            warning(
+                "PLACEHOLDER_BAR_DROPPED",
+                c.ts(),
+                "flat zero-volume bar on closed day " + c.tradingDate() + " removed"));
+      } else {
+        kept.add(c);
+      }
+    }
+    return new Cleaned(List.copyOf(kept), List.copyOf(dropped));
+  }
+
   public QualityReport validate(Interval interval, List<Candle> candles) {
     List<QualityIssue> issues = new ArrayList<>();
     Candle prev = null;
@@ -40,6 +70,12 @@ public final class CandleValidator {
       }
 
       LocalDate date = c.tradingDate();
+      if (interval == Interval.DAY
+          && !c.ts()
+              .equals(date.atStartOfDay(com.auratrade.platform.time.MarketZones.IST).toInstant())) {
+        issues.add(
+            error("DAY_NOT_AT_MIDNIGHT", c.ts(), "daily candle not stamped at IST midnight"));
+      }
       if (!calendar.isTradingDay(date)) {
         issues.add(error("NOT_TRADING_DAY", c.ts(), date + " is not a trading day"));
       } else if (interval.isIntraday() && !calendar.isWithinSession(c.ts())) {

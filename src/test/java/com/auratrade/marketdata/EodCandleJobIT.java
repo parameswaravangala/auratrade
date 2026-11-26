@@ -67,7 +67,8 @@ class EodCandleJobIT extends PostgresIntegrationTest {
   @BeforeEach
   void setUp() {
     jdbc.sql(
-            "truncate candle, instrument_alias, instrument_provider_key, instrument"
+            "truncate candle, backfill_item, backfill_request, instrument_alias,"
+                + " instrument_provider_key, instrument"
                 + " restart identity")
         .update();
     for (int n = 1; n <= 4; n++) {
@@ -105,7 +106,8 @@ class EodCandleJobIT extends PostgresIntegrationTest {
         ingestion,
         calendar,
         clock,
-        new EodCandleJob.Settings(LocalTime.of(19, 0), 30, List.of("EQ"), 0, minCoverage));
+        new EodCandleJob.Settings(
+            LocalTime.of(19, 0), 30, List.of("EQ"), 0, minCoverage, List.of()));
   }
 
   private long stored() {

@@ -84,3 +84,110 @@ HOLIDAY,2025-11-05,Prakash Gurpurb Sri Guru Nanak Dev
 HOLIDAY,2025-12-25,Christmas
 SPECIAL,2025-02-01,Live trading session on Saturday for the Union Budget (circular not located; NSE CM bhavcopy exists for the day)
 COVERS,2025
+
+# ---------------------------------------------------------------------------------------------
+# 2018 to 2023. Source: NSE annual circulars NSE/CMTR/36475 (2018), 39612 (2019), 42877 (2020),
+# 46623 (2021), 50560 (2022), 54757 (2023), plus the amendments below. Reconciled 2026-11-26 against
+# daily Nifty 50 history (Upstox; the same method matched NSE's own bhavcopy archive on all 498
+# trading days of 2024 and 2025). Every trading day and closure here matches the index.
+# ---------------------------------------------------------------------------------------------
+HOLIDAY,2018-01-26,Republic Day
+HOLIDAY,2018-02-13,Mahashivratri
+HOLIDAY,2018-03-02,Holi
+HOLIDAY,2018-03-29,Mahavir Jayanti
+HOLIDAY,2018-03-30,Good Friday
+HOLIDAY,2018-05-01,Maharashtra Day
+HOLIDAY,2018-08-15,Independence Day
+HOLIDAY,2018-08-22,Bakri ID
+HOLIDAY,2018-09-13,Ganesh Chaturthi
+HOLIDAY,2018-09-20,Moharram
+HOLIDAY,2018-10-02,Mahatma Gandhi Jayanti
+HOLIDAY,2018-10-18,Dasera
+HOLIDAY,2018-11-07,Diwali-Laxmi Pujan
+SPECIAL,2018-11-07,Muhurat Trading
+HOLIDAY,2018-11-08,Diwali-Balipratipada
+HOLIDAY,2018-11-23,Gurunanak Jayanti
+HOLIDAY,2018-12-25,Christmas
+HOLIDAY,2019-03-04,Mahashivratri
+HOLIDAY,2019-03-21,Holi
+HOLIDAY,2019-04-17,Mahavir Jayanti
+HOLIDAY,2019-04-19,Good Friday
+HOLIDAY,2019-05-01,Maharashtra Day
+HOLIDAY,2019-06-05,Id-Ul-Fitr (Ramzan ID)
+HOLIDAY,2019-08-12,Bakri Id
+HOLIDAY,2019-08-15,Independence Day
+HOLIDAY,2019-09-02,Ganesh Chaturthi
+HOLIDAY,2019-09-10,Moharram
+HOLIDAY,2019-10-02,Mahatma Gandhi Jayanti
+HOLIDAY,2019-10-08,Dasera
+HOLIDAY,2019-10-28,Diwali-Balipratipada
+HOLIDAY,2019-11-12,Gurunanak Jayanti
+HOLIDAY,2019-12-25,Christmas
+SPECIAL,2019-10-27,Muhurat Trading (Sunday)
+HOLIDAY,2020-02-21,Mahashivratri
+HOLIDAY,2020-03-10,Holi
+HOLIDAY,2020-04-02,Ram Navami
+HOLIDAY,2020-04-06,Mahavir Jayanti
+HOLIDAY,2020-04-10,Good Friday
+HOLIDAY,2020-04-14,Dr.Baba Saheb Ambedkar Jayanti
+HOLIDAY,2020-05-01,Maharashtra Day
+HOLIDAY,2020-05-25,Id-Ul-Fitr (Ramzan ID)
+HOLIDAY,2020-10-02,Mahatma Gandhi Jayanti
+HOLIDAY,2020-11-16,Diwali-Balipratipada
+HOLIDAY,2020-11-30,Gurunanak Jayanti
+HOLIDAY,2020-12-25,Christmas
+SPECIAL,2020-11-14,Muhurat Trading (Saturday)
+HOLIDAY,2021-01-26,Republic Day
+HOLIDAY,2021-03-11,Mahashivratri
+HOLIDAY,2021-03-29,Holi
+HOLIDAY,2021-04-02,Good Friday
+HOLIDAY,2021-04-14,Dr.Baba Saheb Ambedkar Jayanti
+HOLIDAY,2021-04-21,Ram Navami
+HOLIDAY,2021-05-13,Id-Ul-Fitr (Ramzan ID)
+HOLIDAY,2021-07-21,Bakri Id
+HOLIDAY,2021-08-19,Moharram
+HOLIDAY,2021-09-10,Ganesh Chaturthi
+HOLIDAY,2021-10-15,Dussehra
+HOLIDAY,2021-11-04,Diwali-Laxmi Pujan
+SPECIAL,2021-11-04,Muhurat Trading
+HOLIDAY,2021-11-05,Diwali-Balipratipada
+HOLIDAY,2021-11-19,Gurunanak Jayanti
+HOLIDAY,2022-01-26,Republic Day
+HOLIDAY,2022-03-01,Mahashivratri
+HOLIDAY,2022-03-18,Holi
+HOLIDAY,2022-04-14,Dr. Baba Saheb Ambedkar Jayanti/Mahavir Jayanti
+HOLIDAY,2022-04-15,Good Friday
+HOLIDAY,2022-05-03,Id-Ul-Fitr (Ramzan ID)
+HOLIDAY,2022-08-09,Moharram
+HOLIDAY,2022-08-15,Independence Day
+HOLIDAY,2022-08-31,Ganesh Chaturthi
+HOLIDAY,2022-10-05,Dussehra
+HOLIDAY,2022-10-24,Diwali-Laxmi Pujan
+SPECIAL,2022-10-24,Muhurat Trading
+HOLIDAY,2022-10-26,Diwali-Balipratipada
+HOLIDAY,2022-11-08,Gurunanak Jayanti
+HOLIDAY,2019-04-29,Parliamentary elections in Mumbai (NSE circular of March 2019 modifying the 2019 list)
+HOLIDAY,2019-10-21,Maharashtra assembly elections (circular not located; no index values that day)
+SPECIAL,2020-02-01,Live trading session on Saturday for the Union Budget (NSE F&O circular 01/2020)
+HOLIDAY,2023-01-26,Republic Day
+HOLIDAY,2023-03-07,Holi
+HOLIDAY,2023-03-30,Ram Navami
+HOLIDAY,2023-04-04,Mahavir Jayanti
+HOLIDAY,2023-04-07,Good Friday
+HOLIDAY,2023-04-14,Dr. Baba Saheb Ambedkar Jayanti
+HOLIDAY,2023-05-01,Maharashtra Day
+HOLIDAY,2023-06-29,Bakri Id (moved from June 28 by NSE/CMTR/57285)
+HOLIDAY,2023-08-15,Independence Day
+HOLIDAY,2023-09-19,Ganesh Chaturthi
+HOLIDAY,2023-10-02,Mahatma Gandhi Jayanti
+HOLIDAY,2023-10-24,Dussehra
+HOLIDAY,2023-11-14,Diwali-Balipratipada
+HOLIDAY,2023-11-27,Gurunanak Jayanti
+HOLIDAY,2023-12-25,Christmas
+SPECIAL,2023-11-12,Muhurat Trading (Sunday)
+COVERS,2018
+COVERS,2019
+COVERS,2020
+COVERS,2021
+COVERS,2022
+COVERS,2023
