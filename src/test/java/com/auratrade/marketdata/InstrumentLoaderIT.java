@@ -35,7 +35,8 @@ class InstrumentLoaderIT extends PostgresIntegrationTest {
   @BeforeEach
   void clean() {
     jdbc.sql(
-            "truncate candle, instrument_alias, instrument_provider_key, instrument"
+            "truncate candle, backfill_item, backfill_request, instrument_alias,"
+                + " instrument_provider_key, instrument"
                 + " restart identity")
         .update();
   }
