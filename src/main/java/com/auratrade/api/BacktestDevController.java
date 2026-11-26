@@ -2,6 +2,7 @@ package com.auratrade.api;
 
 import com.auratrade.backtest.PortfolioSimulationService;
 import com.auratrade.backtest.ScreenBacktestService;
+import com.auratrade.backtest.StrategySweepService;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
@@ -21,10 +22,28 @@ class BacktestDevController {
 
   private final ScreenBacktestService backtests;
   private final PortfolioSimulationService portfolio;
+  private final StrategySweepService sweeps;
 
-  BacktestDevController(ScreenBacktestService backtests, PortfolioSimulationService portfolio) {
+  BacktestDevController(
+      ScreenBacktestService backtests,
+      PortfolioSimulationService portfolio,
+      StrategySweepService sweeps) {
     this.backtests = backtests;
     this.portfolio = portfolio;
+    this.sweeps = sweeps;
+  }
+
+  /**
+   * Parameter sweep with an out-of-sample check, for example
+   * /dev/backtest/sweep?screen=relative-strength-leaders&from=2019-01-01&split=2023-01-01&to=2026-11-25.
+   */
+  @GetMapping("/sweep")
+  StrategySweepService.Report sweep(
+      @RequestParam String screen,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate split,
+      @RequestParam LocalDate to) {
+    return sweeps.sweep(screen, from, split, to);
   }
 
   /** For example /dev/backtest/screens?from=2019-01-01&to=2026-08-31&step=5&horizons=5,20,60. */
@@ -56,7 +75,8 @@ class BacktestDevController {
       @RequestParam(defaultValue = "2") java.math.BigDecimal atrMultiple,
       @RequestParam(defaultValue = "60") int maxHold,
       @RequestParam(defaultValue = "5") int slippageBps,
-      @RequestParam(defaultValue = "true") boolean costs) {
+      @RequestParam(defaultValue = "true") boolean costs,
+      @RequestParam(defaultValue = "false") boolean regime) {
     return portfolio.run(
         new PortfolioSimulationService.Request(
             screen,
@@ -69,7 +89,8 @@ class BacktestDevController {
             atrMultiple,
             maxHold,
             slippageBps,
-            costs));
+            costs,
+            regime));
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
