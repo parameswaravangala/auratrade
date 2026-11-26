@@ -63,7 +63,8 @@ public class PortfolioSimulationService {
       BigDecimal atrMultiple,
       int maxHoldSessions,
       int slippageBps,
-      boolean costs) {}
+      boolean costs,
+      boolean regimeFilter) {}
 
   public record Report(
       Request request,
@@ -94,28 +95,63 @@ public class PortfolioSimulationService {
     this.calendar = calendar;
   }
 
+  /**
+   * The slow, parameter-independent part of a simulation: signals for every session (best {@code
+   * keepPerDay} per day) and compact prices for every share that was ever a candidate. Reused by
+   * parameter sweeps, which then only rerun the fast simulator.
+   */
+  public record Prepared(
+      String screen,
+      List<LocalDate> sessions,
+      Map<Long, PriceTable> prices,
+      Map<LocalDate, List<Signal>> signalsByDate,
+      PriceTable benchmark,
+      int candidateShares) {}
+
   public Report run(Request r) {
-    Screen screen =
-        screener.definitions().stream()
-            .filter(s -> s.name().equals(r.screen()))
-            .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("unknown screen '" + r.screen() + "'"));
     if (r.to().isBefore(r.from()) || r.maxPositions() < 1 || r.initialCapital().signum() <= 0) {
       throw new IllegalArgumentException("check from, to, maxPositions and initialCapital");
     }
     long started = System.nanoTime();
+    Prepared p = prepare(r.screen(), r.from(), r.to(), r.maxPositions() * 3);
+    var settings =
+        new PortfolioSimulator.Settings(
+            r.initialCapital(),
+            r.maxPositions(),
+            r.riskPerTradePct().movePointLeft(2),
+            r.maxPositionPct().movePointLeft(2),
+            14,
+            r.atrMultiple(),
+            r.maxHoldSessions(),
+            r.slippageBps(),
+            r.costs() ? CostModel.zerodhaDelivery() : CostModel.free(),
+            r.regimeFilter());
+    var outcome =
+        PortfolioSimulator.run(
+            p.sessions(), p.prices(), p.signalsByDate(), p.benchmark(), settings);
+    var summary = PortfolioMetrics.of(outcome, r.initialCapital());
+    return report(r, p, outcome, summary, started);
+  }
+
+  public Prepared prepare(
+      String screenName, LocalDate from, LocalDate requestedTo, int keepPerDay) {
+    Screen screen =
+        screener.definitions().stream()
+            .filter(s -> s.name().equals(screenName))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("unknown screen '" + screenName + "'"));
     String source = provider.name();
     LocalDate latest =
         reader
             .latestDate(source, Interval.DAY)
             .orElseThrow(() -> new IllegalStateException("no candles from " + source));
-    LocalDate to = r.to().isAfter(latest) ? latest : r.to();
+    LocalDate to = requestedTo.isAfter(latest) ? latest : requestedTo;
     Series bench =
         reader
             .index(source, Interval.DAY, screener.benchmark(), latest, HISTORY)
             .orElseThrow(
                 () -> new IllegalStateException("load " + screener.benchmark() + " first"));
-    List<LocalDate> sessions = calendar.tradingDaysBetween(r.from(), to);
+    List<LocalDate> sessions = calendar.tradingDaysBetween(from, to);
     Set<LocalDate> dates = new HashSet<>(sessions);
 
     // Pass 1: signals, keeping the best few per day.
@@ -124,7 +160,7 @@ public class PortfolioSimulationService {
         source,
         latest,
         share -> all.addAll(ScreenReplay.signals(share, bench, screen, dates, screener::guard)));
-    int keep = r.maxPositions() * 3;
+    int keep = keepPerDay;
     Map<LocalDate, List<Signal>> byDate = new TreeMap<>();
     all.stream()
         .collect(Collectors.groupingBy(Signal::date))
@@ -154,21 +190,17 @@ public class PortfolioSimulationService {
         new ArrayList<>(candidates),
         s -> prices.put(s.instrumentId(), new PriceTable(s.symbol(), s.candles())));
     PriceTable benchTable = new PriceTable(bench.symbol(), bench.candles());
+    return new Prepared(screenName, sessions, prices, byDate, benchTable, candidates.size());
+  }
 
-    var settings =
-        new PortfolioSimulator.Settings(
-            r.initialCapital(),
-            r.maxPositions(),
-            r.riskPerTradePct().movePointLeft(2),
-            r.maxPositionPct().movePointLeft(2),
-            14,
-            r.atrMultiple(),
-            r.maxHoldSessions(),
-            r.slippageBps(),
-            r.costs() ? CostModel.zerodhaDelivery() : CostModel.free());
-    var outcome = PortfolioSimulator.run(sessions, prices, byDate, benchTable, settings);
-    var summary = PortfolioMetrics.of(outcome, r.initialCapital());
-
+  private Report report(
+      Request r,
+      Prepared p,
+      PortfolioSimulator.Outcome outcome,
+      PortfolioMetrics.Summary summary,
+      long started) {
+    String source = provider.name();
+    LocalDate to = p.sessions().isEmpty() ? r.to() : p.sessions().get(p.sessions().size() - 1);
     List<PortfolioSimulator.Trade> byPnl =
         outcome.trades().stream()
             .sorted(Comparator.comparing(PortfolioSimulator.Trade::netPnl))
@@ -193,8 +225,8 @@ public class PortfolioSimulationService {
         r,
         source,
         screener.benchmark(),
-        byDate.size(),
-        candidates.size(),
+        p.signalsByDate().size(),
+        p.candidateShares(),
         seconds,
         summary,
         byPnl.subList(0, Math.min(5, byPnl.size())),

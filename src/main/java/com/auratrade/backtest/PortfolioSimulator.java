@@ -42,7 +42,11 @@ final class PortfolioSimulator {
       BigDecimal atrMultiple,
       int maxHoldSessions,
       int slippageBps,
-      CostModel costs) {}
+      CostModel costs,
+      boolean regimeFilter) {}
+
+  /** Length of the benchmark average used by the regime filter. */
+  static final int REGIME_AVERAGE = 200;
 
   record Trade(
       String symbol,
@@ -167,7 +171,7 @@ final class PortfolioSimulator {
       }
 
       // 2. Entries from the previous session's signals.
-      if (d > 0) {
+      if (d > 0 && (!s.regimeFilter() || benchmarkAboveAverage(benchmark, sessions.get(d - 1)))) {
         LocalDate signalDay = sessions.get(d - 1);
         for (Signal sig : signalsByDate.getOrDefault(signalDay, List.of())) {
           if (open.size() >= s.maxPositions()) {
@@ -285,6 +289,23 @@ final class PortfolioSimulator {
 
   private static BigDecimal slipDown(BigDecimal price, BigDecimal slip) {
     return price.multiply(BigDecimal.ONE.subtract(slip)).setScale(4, RoundingMode.HALF_UP);
+  }
+
+  /**
+   * Regime filter: true when the benchmark's close on {@code day} is above its 200-session average.
+   * False (no new entries) when there is not enough history, so the filter fails closed.
+   */
+  static boolean benchmarkAboveAverage(PriceTable benchmark, LocalDate day) {
+    int i = benchmark.indexAtOrBefore(day);
+    if (i + 1 < REGIME_AVERAGE) {
+      return false;
+    }
+    BigDecimal sum = BigDecimal.ZERO;
+    for (int k = i + 1 - REGIME_AVERAGE; k <= i; k++) {
+      sum = sum.add(benchmark.close(k));
+    }
+    BigDecimal average = sum.divide(BigDecimal.valueOf(REGIME_AVERAGE), Indicators.MC);
+    return benchmark.close(i).compareTo(average) > 0;
   }
 
   /** ATR over the {@code n} bars ending at index {@code i}. */
