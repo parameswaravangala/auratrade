@@ -66,3 +66,13 @@ export function describe(run: JobRun): string {
   const by = run.trigger === "MANUAL" ? " (by hand)" : run.trigger === "STARTUP" ? " (startup catch-up)" : "";
   return `${verb}${by}: ${counts}${run.detail ? `. ${run.detail}` : ""}`;
 }
+
+/**
+ * Rows the instrument-master run rejected. The job reports them only in its detail ("... 1 rejected
+ * [...]"), not as failed items, because a few bad rows must not make the run PARTIAL.
+ */
+export function rejectedRows(run: JobRun): number {
+  const m = /(\d[\d,]*) rejected/.exec(run.detail ?? "");
+  const count = m?.[1];
+  return count ? Number(count.replaceAll(",", "")) : run.itemsFailed;
+}
