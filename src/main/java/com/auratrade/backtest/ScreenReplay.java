@@ -1,9 +1,9 @@
 package com.auratrade.backtest;
 
+import com.auratrade.indicators.Indicators;
 import com.auratrade.marketdata.Candle;
 import com.auratrade.marketdata.CandleSeriesReader.Series;
 import com.auratrade.screener.Screen;
-import com.auratrade.screener.indicators.Indicators;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;

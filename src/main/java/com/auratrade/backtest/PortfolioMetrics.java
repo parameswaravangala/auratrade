@@ -2,7 +2,7 @@ package com.auratrade.backtest;
 
 import com.auratrade.backtest.PortfolioSimulator.Day;
 import com.auratrade.backtest.PortfolioSimulator.Trade;
-import com.auratrade.screener.indicators.Indicators;
+import com.auratrade.indicators.Indicators;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.temporal.ChronoUnit;

@@ -24,7 +24,7 @@ An "agent" here means a component where an LLM chooses or interprets: classifica
 | News Intelligence Agent | Merged into MIA stage 2 (classify) | `agents.mia.Classifier` | 1 |
 | Corporate Event Agent | Mostly **service**: NSE/BSE announcement categories are structured. LLM only for free-text attachments | `intelligence.CorporateEventClassifier` (rules), with LLM fallback | 1 |
 | Sentiment Analysis Agent | Merged into classify. Labels only, never a numeric score fed into strategies (eval finding: mixed-news labels are ambiguous) | MIA stage 2 | 1 |
-| Technical Analysis Agent | **Service** (indicators exist: `screener.indicators`). LLM only narrates | `screener` + narration prompt | 1 (narration) |
+| Technical Analysis Agent | **Service** (indicators exist: `indicators`). LLM only narrates | `screener` + narration prompt | 1 (narration) |
 | Market Briefing Agent | **Agent** (synthesis) | `agents.briefing` | 1 |
 | Fundamental Analysis Agent | **Service** for ratios; agent for narration. Blocked on a fundamentals data source (none free and licensed found yet) | later | 2 |
 | Stock Research Agent | **Agent** (Q&A over evidence, RAG) | `agents.research` | 3 |

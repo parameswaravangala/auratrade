@@ -46,6 +46,21 @@ class ArchitectureTest {
           .allowEmptyShould(true);
 
   @ArchTest
+  static final ArchRule strategiesAndIndicatorsDoNotDependOnConsumers =
+      noClasses()
+          .that()
+          .resideInAnyPackage("com.auratrade.strategy..", "com.auratrade.indicators..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage(
+              "com.auratrade.screener..",
+              "com.auratrade.backtest..",
+              "com.auratrade.paperbroker..",
+              "com.auratrade.api..",
+              "org.springframework..")
+          .allowEmptyShould(true);
+
+  @ArchTest
   static final ArchRule onlyTheGatewayTouchesSpringAi =
       noClasses()
           .that()

@@ -1,7 +1,7 @@
 package com.auratrade.backtest;
 
 import com.auratrade.backtest.ScreenReplay.Sample;
-import com.auratrade.screener.indicators.Indicators;
+import com.auratrade.indicators.Indicators;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;

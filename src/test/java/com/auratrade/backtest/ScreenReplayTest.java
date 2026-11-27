@@ -99,7 +99,7 @@ class ScreenReplayTest {
           assertThat(s.ret())
               .isEqualByComparingTo(
                   new BigDecimal("15")
-                      .divide(new BigDecimal("14"), com.auratrade.screener.indicators.Indicators.MC)
+                      .divide(new BigDecimal("14"), com.auratrade.indicators.Indicators.MC)
                       .subtract(BigDecimal.ONE));
           assertThat(s.excess()).isEqualByComparingTo(s.ret().subtract(new BigDecimal("0.01")));
         });

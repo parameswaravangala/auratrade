@@ -1,10 +1,10 @@
 package com.auratrade.screener;
 
-import static com.auratrade.screener.indicators.Indicators.MC;
+import static com.auratrade.indicators.Indicators.MC;
 
+import com.auratrade.indicators.Indicators;
 import com.auratrade.marketdata.Candle;
 import com.auratrade.marketdata.CandleSeriesReader.Series;
-import com.auratrade.screener.indicators.Indicators;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;

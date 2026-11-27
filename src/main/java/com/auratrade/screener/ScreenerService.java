@@ -1,11 +1,11 @@
 package com.auratrade.screener;
 
+import com.auratrade.indicators.Indicators;
 import com.auratrade.marketdata.Candle;
 import com.auratrade.marketdata.CandleSeriesReader;
 import com.auratrade.marketdata.CandleSeriesReader.Series;
 import com.auratrade.marketdata.Interval;
 import com.auratrade.marketdata.MarketDataProvider;
-import com.auratrade.screener.indicators.Indicators;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
