@@ -135,9 +135,11 @@ class EodCandleJobIT extends PostgresIntegrationTest {
 
     var outcome = job(s, 0.9, List.of("NIFTY")).execute(FRIDAY);
 
-    assertThat(s.historyCalls).isEmpty();
+    LocalDate thursday = calendar.previousTradingDay(FRIDAY.to());
+    // Only NIFTY's previous session is re-read from history; shares get a correction backfill.
+    assertThat(s.historyCalls).containsExactly("KN " + thursday + ".." + thursday);
     assertThat(s.snapshotCalls).hasSize(3); // NIFTY, then 4 shares in calls of 3 and 1
-    assertThat(stored()).isEqualTo(5);
+    assertThat(stored()).isEqualTo(6); // NIFTY Thursday (history) and Friday, 4 shares Friday
     assertThat(outcome.ok()).isEqualTo(4);
     assertThat(outcome.detail()).contains("4 with a candle for 2026-01-23 (quotes)");
     assertThat(corrected).containsExactly(calendar.previousTradingDay(FRIDAY.to()));
@@ -164,10 +166,13 @@ class EodCandleJobIT extends PostgresIntegrationTest {
 
     job(s, 0.9, List.of()).execute(new JobWindow(thursday, FRIDAY.to()));
 
+    assertThat(corrected).isEmpty(); // history has just read Thursday
+
     assertThat(s.historyCalls)
         .hasSize(4)
         .allMatch(c -> c.endsWith(calendar.previousTradingDay(thursday) + ".." + thursday));
-    assertThat(s.snapshotCalls).hasSize(2);
+    assertThat(s.snapshotCalls)
+        .hasSize(4); // a probe of the 4 shares, then the 4 shares (3 + 1 each)
     assertThat(stored()).isEqualTo(8);
   }
 
@@ -198,6 +203,20 @@ class EodCandleJobIT extends PostgresIntegrationTest {
     assertThat(stored()).isEqualTo(5);
     assertThat(outcome.detail()).doesNotContain("quotes");
     assertThat(corrected).isEmpty();
+  }
+
+  @Test
+  void withoutBenchmarksAFewSharesDetectTheNextOpen() {
+    var s = snapshots(FRIDAY.to());
+    for (int n = 1; n <= 4; n++) {
+      s.snapshot.put("K" + n, "next");
+    }
+
+    job(s, 0.9, List.of()).execute(FRIDAY);
+
+    assertThat(s.snapshotCalls).hasSize(2); // only the probe, 4 shares in calls of 3 and 1
+    assertThat(s.historyCalls).hasSize(4);
+    assertThat(stored()).isEqualTo(4);
   }
 
   @Test

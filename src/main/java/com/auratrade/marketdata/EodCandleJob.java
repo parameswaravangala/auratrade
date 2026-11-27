@@ -30,6 +30,7 @@ public class EodCandleJob implements ScheduledJob {
 
   public static final String NAME = "eod-candles";
   private static final int MAX_LISTED_FAILURES = 20;
+  private static final int PROBE_SHARES = 20;
 
   /**
    * Re-reads a past session from the provider's history in the background, replacing provisional
@@ -108,14 +109,19 @@ public class EodCandleJob implements ScheduledJob {
         settings.benchmarks().stream().map(ingestion::indexTarget).toList();
 
     boolean snapshots = ingestion.supportsSessionBars();
-    if (snapshots && !indices.isEmpty()) {
-      var probe = ingestion.ingestSessionBars(indices, last);
+    if (snapshots) {
+      // Probe with the benchmarks, or a few shares when none are configured.
+      List<CandleRepository.Target> probeTargets =
+          indices.isEmpty()
+              ? universe.subList(0, Math.min(PROBE_SHARES, universe.size()))
+              : indices;
+      var probe = ingestion.ingestSessionBars(probeTargets, last);
       boolean nextSessionOpened =
           probe.values().stream()
               .anyMatch(r -> r.newestDate() != null && r.newestDate().isAfter(last));
       if (nextSessionOpened) {
         snapshots = false; // a catch-up after the next open: only history has the session now
-      } else {
+      } else if (!indices.isEmpty()) {
         probe.forEach((index, r) -> requireDay(index, r, last));
       }
     }
@@ -126,13 +132,13 @@ public class EodCandleJob implements ScheduledJob {
     boolean needHistory = !snapshots || window.from().isBefore(last);
 
     for (CandleRepository.Target index : indices) {
-      if (needHistory) {
-        var r = ingestion.ingest(index, Interval.DAY, historyFrom, historyTo);
-        if (snapshots) {
-          requireClean(index, r, last);
-        } else {
-          requireDay(index, r, last); // history reached the last day
-        }
+      // With snapshots and a one-day window, this re-reads only the previous session, replacing
+      // its provisional snapshot bar: one call per benchmark, so no backfill is needed for them.
+      var r = ingestion.ingest(index, Interval.DAY, historyFrom, historyTo);
+      if (snapshots) {
+        requireClean(index, r, last);
+      } else {
+        requireDay(index, r, last); // history reached the last day
       }
     }
     int withLastDay = 0;
@@ -177,8 +183,11 @@ public class EodCandleJob implements ScheduledJob {
               "only %d of %d shares have a candle for %s; data probably not published yet",
               withLastDay, universe.size(), last));
     }
+    // A catch-up window has just read the previous session from history: nothing to correct.
     String correction =
-        snapshots ? "; " + corrections.request(calendar.previousTradingDay(last)) : "";
+        snapshots && !needHistory
+            ? "; " + corrections.request(calendar.previousTradingDay(last))
+            : "";
     String detail =
         String.format(
             "%d shares, %d with a candle for %s%s, %d failed%s%s",
