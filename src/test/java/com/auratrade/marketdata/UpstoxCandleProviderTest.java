@@ -62,6 +62,56 @@ class UpstoxCandleProviderTest {
         ["2026-11-20T00:00:00+05:30",100.05,101.1,99.95,100.75,1200,0]]}}
       """;
 
+  /** Shape of a live v3 OHLC quote (2026-11-27), made-up instruments and numbers. */
+  private static final String QUOTES =
+      """
+      {"status":"success","data":{
+        "NSE_EQ:AAA":{"last_price":208.3,"instrument_token":"NSE_EQ|INE000A01004","prev_ohlc":null,
+          "live_ohlc":{"open":205.85,"high":209.8,"low":205.3,"close":208.3,"volume":15261216,
+                       "ts":1795631400000}},
+        "NSE_EQ:BBB":{"last_price":11.5,"instrument_token":"NSE_EQ|INE000B01002","prev_ohlc":null,
+          "live_ohlc":null}}}
+      """;
+
+  @Test
+  void sessionBarsComeFromOneQuoteCallKeyedByInstrumentToken() {
+    server
+        .expect(
+            requestTo(
+                org.hamcrest.Matchers.startsWith(
+                    BASE + "/v3/market-quote/ohlc?interval=1d&instrument_key=")))
+        .andExpect(header("Authorization", "Bearer test-token"))
+        .andRespond(withSuccess(QUOTES, MediaType.APPLICATION_JSON));
+
+    var bars = provider.latestSessionBars(List.of(KEY, "NSE_EQ|INE000B01002"));
+
+    server.verify();
+    assertThat(bars).containsOnlyKeys(KEY); // BBB has no live bar
+    Candle bar = bars.get(KEY);
+    assertThat(bar.tradingDate()).isEqualTo(LocalDate.parse("2026-11-26"));
+    assertThat(bar.ts()).isEqualTo(Instant.parse("2026-11-25T18:30:00Z")); // IST midnight
+    assertThat(bar.close()).isEqualByComparingTo("208.3");
+    assertThat(bar.close().scale()).isEqualTo(1); // from the text, no double
+    assertThat(bar.volume()).isEqualTo(15261216);
+  }
+
+  @Test
+  void quoteCallsAreLimitedToTheDocumentedMaximum() {
+    var keys = java.util.Collections.nCopies(UpstoxCandleProvider.MAX_QUOTE_KEYS + 1, KEY);
+
+    assertThatThrownBy(() -> provider.latestSessionBars(keys))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void aQuoteWithoutAnInstrumentTokenFailsTheResponse() {
+    assertThatThrownBy(() ->
+            UpstoxCandleParser.parseSessionBars(
+                "{\"status\":\"success\",\"data\":{\"NSE_EQ:X\":{\"live_ohlc\":null}}}"))
+        .isInstanceOf(ProviderException.BadResponse.class)
+        .hasMessageContaining("instrument_token");
+  }
+
   @Test
   void aRateLimitAnswerIsRetriedAfterAPause() {
     String day = url("days", 1, "2026-11-20", "2026-11-20");

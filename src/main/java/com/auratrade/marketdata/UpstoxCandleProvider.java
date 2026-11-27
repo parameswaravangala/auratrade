@@ -23,7 +23,44 @@ import org.springframework.web.client.RestClient;
  * <p>Uses the Analytics token (read-only, one year). The token is never logged. A missing token, or
  * a 401 or 403 from Upstox, raises {@link ProviderException.Auth}.
  */
-final class UpstoxCandleProvider implements MarketDataProvider {
+final class UpstoxCandleProvider implements MarketDataProvider, SessionBarProvider {
+
+  /** Documented maximum for the v3 OHLC quote ("up to 500 instruments", read 2026-11-27). */
+  static final int MAX_QUOTE_KEYS = 500;
+
+  @Override
+  public int maxKeysPerCall() {
+    return MAX_QUOTE_KEYS;
+  }
+
+  /**
+   * One GET /v3/market-quote/ohlc?interval=1d call for up to 500 keys (Upstox docs, read
+   * 2026-11-27; the Analytics token covers Market Quote). Bars are restamped to IST midnight of the
+   * date in {@code ts}, our DAY convention.
+   */
+  @Override
+  public Map<String, Candle> latestSessionBars(List<String> providerKeys) {
+    if (providerKeys.isEmpty()) {
+      return Map.of();
+    }
+    if (providerKeys.size() > MAX_QUOTE_KEYS) {
+      throw new IllegalArgumentException(
+          NAME + " quotes take at most " + MAX_QUOTE_KEYS + " keys, got " + providerKeys.size());
+    }
+    if (token.isEmpty()) {
+      throw new ProviderException.Auth(
+          NAME, "UPSTOX_ANALYTICS_TOKEN is not set; generate it in the Upstox developer console");
+    }
+    Map<String, Candle> bars =
+        fetch(
+            providerKeys.size() + " quote keys",
+            UpstoxCandleParser::parseSessionBars,
+            "/v3/market-quote/ohlc?interval=1d&instrument_key={keys}",
+            String.join(",", providerKeys));
+    Map<String, Candle> out = new java.util.HashMap<>();
+    bars.forEach((key, bar) -> out.put(key, atIstMidnight(List.of(bar)).getFirst()));
+    return out;
+  }
 
   static final String NAME = "UPSTOX";
 
@@ -180,9 +217,17 @@ final class UpstoxCandleProvider implements MarketDataProvider {
   }
 
   private List<Candle> fetch(String key, String uriTemplate, Object... uriVariables) {
+    return fetch(key, UpstoxCandleParser::parse, uriTemplate, uriVariables);
+  }
+
+  private <T> T fetch(
+      String key,
+      java.util.function.Function<String, T> parser,
+      String uriTemplate,
+      Object... uriVariables) {
     for (int attempt = 0; ; attempt++) {
       try {
-        return fetchOnce(key, uriTemplate, uriVariables);
+        return fetchOnce(key, parser, uriTemplate, uriVariables);
       } catch (ProviderException.RateLimited e) {
         java.time.Duration pause = pauseFor(e);
         if (attempt >= RATE_LIMIT_RETRIES || pause.compareTo(MAX_RATE_LIMIT_PAUSE) > 0) {
@@ -198,7 +243,11 @@ final class UpstoxCandleProvider implements MarketDataProvider {
     }
   }
 
-  private List<Candle> fetchOnce(String key, String uriTemplate, Object... uriVariables) {
+  private <T> T fetchOnce(
+      String key,
+      java.util.function.Function<String, T> parser,
+      String uriTemplate,
+      Object... uriVariables) {
     limiter.acquire();
     return http.get()
         .uri(uriTemplate, uriVariables)
@@ -233,7 +282,7 @@ final class UpstoxCandleProvider implements MarketDataProvider {
                     + ": "
                     + UpstoxCandleParser.abbreviate(body));
           }
-          return UpstoxCandleParser.parse(body);
+          return parser.apply(body);
         });
   }
 }

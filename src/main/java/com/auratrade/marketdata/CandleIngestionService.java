@@ -91,10 +91,77 @@ public class CandleIngestionService {
     return candles.shareTargets(EXCHANGE, provider.name(), series, limit);
   }
 
+  /** True when the provider can give many instruments' latest session bar in one call. */
+  public boolean supportsSessionBars() {
+    return provider instanceof SessionBarProvider;
+  }
+
+  /** An index such as NIFTY with its key at the selected provider. */
+  public CandleRepository.Target indexTarget(String indexSymbol) {
+    return candles
+        .indexTarget(EXCHANGE, indexSymbol, provider.name())
+        .orElseThrow(() ->
+            new IllegalArgumentException(
+                indexSymbol + " is not an NSE index with a " + provider.name() + " key"));
+  }
+
+  /**
+   * Stores the bar for {@code session} from quote snapshots (ADR 0025), a few calls for the whole
+   * universe. Each bar is validated and stored like any other; a bar dated another session (the
+   * instrument did not trade, or the next session has opened) is not stored, and its result has
+   * {@code newestDate} other than {@code session} or null.
+   *
+   * @return one result per target, in the order given
+   * @throws IllegalStateException if the provider has no snapshot capability
+   */
+  public java.util.Map<CandleRepository.Target, Result> ingestSessionBars(
+      List<CandleRepository.Target> targets, LocalDate session) {
+    if (!(provider instanceof SessionBarProvider snapshots)) {
+      throw new IllegalStateException(provider.name() + " has no session-bar snapshots");
+    }
+    java.util.Map<CandleRepository.Target, Result> out = new java.util.LinkedHashMap<>();
+    int size = snapshots.maxKeysPerCall();
+    for (int i = 0; i < targets.size(); i += size) {
+      List<CandleRepository.Target> chunk = targets.subList(i, Math.min(i + size, targets.size()));
+      var bars =
+          snapshots.latestSessionBars(
+              chunk.stream().map(CandleRepository.Target::providerKey).toList());
+      for (CandleRepository.Target t : chunk) {
+        Candle bar = bars.get(t.providerKey());
+        if (bar == null || !bar.tradingDate().equals(session)) {
+          out.put(
+              t,
+              new Result(
+                  t.tradingSymbol(),
+                  provider.name(),
+                  Interval.DAY,
+                  session,
+                  session,
+                  0,
+                  0,
+                  bar == null ? null : bar.tradingDate(),
+                  List.of()));
+          continue;
+        }
+        out.put(t, store(t, Interval.DAY, session, session, List.of(bar)));
+      }
+    }
+    return out;
+  }
+
   public Result ingest(
       CandleRepository.Target target, Interval interval, LocalDate from, LocalDate to) {
+    return store(
+        target, interval, from, to, provider.candles(target.providerKey(), interval, from, to));
+  }
+
+  private Result store(
+      CandleRepository.Target target,
+      Interval interval,
+      LocalDate from,
+      LocalDate to,
+      List<Candle> raw) {
     String tradingSymbol = target.tradingSymbol();
-    List<Candle> raw = provider.candles(target.providerKey(), interval, from, to);
     CandleValidator.Cleaned cleaned = validator.dropPlaceholderBars(interval, raw);
     List<Candle> fetched = cleaned.kept();
     QualityReport validated = validator.validate(interval, fetched);
