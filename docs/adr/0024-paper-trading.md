@@ -42,3 +42,29 @@ Known gap (2026-11-27): decisions are not authenticated. `decided_by` is free te
 request and there is no separate audit log, which is acceptable only because the API is served
 in the dev profile alone. Authentication and an append-only audit trail (backlog B-031) are
 required before the API is served in any other profile, and before live trading.
+
+## Amendment 2026-11-27: corporate-action guard (R0-02)
+Context: prices are not adjusted for splits and bonuses yet (B-020). On an ex-date the open falls
+by the ratio, the low passes any stop, and the paper account would book a loss that never
+happened (research note `docs/research/2026-11-27-paper-account-validity.md`, recommendation R1).
+
+Decision:
+- `CorporateActionGuard` flags a session whose open is 15% or more below the previous close, or
+  within one percentage point of the price change of a common split or bonus (1:10 to 4:1
+  bonuses; 1:2, 1:4, 1:5, 1:10 splits). A flag is a question for a person, not a fact.
+- On a flag for a held position, no automatic STOP or TIME exit is proposed. A
+  `POSSIBLE_CORPORATE_ACTION` review (V11 `paper_review`) records the previous close, the open,
+  the gap and the fitting ratios. Until it is resolved the position gets no automatic exit and
+  is marked at the pre-gap close, so no drawdown is booked.
+- An approved order whose fill session opens with a flagged gap is UNFILLED with the reason (and,
+  for a held share, a review is opened). Fails closed: nothing trades at an unexplained gap.
+- A person resolves the review after checking the exchange's corporate actions:
+  `NO_CORPORATE_ACTION` (normal rules resume next session) or `ADJUSTED` with a shares factor
+  (quantity times factor, entry and stop divided by it; a fractional result is refused). API:
+  `GET /api/v1/paper/accounts/{id}/reviews`, `POST /api/v1/paper/reviews/{id}/resolve`, dev
+  profile only (B-031).
+
+Consequences: some real drops of 15% or more, and drops near a ratio such as -10% (1:10 bonus),
+also wait for a person; that delay is the price of never booking a fake loss. The backtest's
+corporate-action rule (one-day move over 40%) differs and is to be aligned in R1-12. Proper
+adjustment from an ex-date feed remains B-020.

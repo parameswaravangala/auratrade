@@ -132,6 +132,24 @@ class PaperTradingController {
     return paper.decideAll(d.orderIds(), d.approve(), d.by(), d.note());
   }
 
+  /** Possible corporate actions on held positions, newest first; status OPEN or RESOLVED. */
+  @GetMapping("/accounts/{id}/reviews")
+  List<PaperRepository.Review> reviews(
+      @PathVariable long id, @RequestParam(required = false) String status) {
+    return repo.reviews(id, status);
+  }
+
+  /**
+   * @param resolution NO_CORPORATE_ACTION or ADJUSTED
+   * @param factor shares multiplier for ADJUSTED (2 for a 1:1 bonus or a 1:2 split), else null
+   */
+  record Resolve(String by, String note, String resolution, BigDecimal factor) {}
+
+  @PostMapping("/reviews/{id}/resolve")
+  PaperRepository.Review resolve(@PathVariable long id, @RequestBody Resolve r) {
+    return paper.resolveReview(id, r.resolution(), r.factor(), r.by(), r.note());
+  }
+
   /** Dev: process one session for one account now, for example to start on the latest data. */
   @PostMapping("/accounts/{id}/process")
   PaperTradingService.SessionResult process(

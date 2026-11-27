@@ -492,4 +492,156 @@ public class PaperRepository {
         .query(LocalDate.class)
         .optional();
   }
+
+  // ---- reviews (ADR 0024 amendment: possible corporate actions)
+
+  public record Review(
+      long id,
+      long accountId,
+      long instrumentId,
+      String symbol,
+      String kind,
+      LocalDate sessionDate,
+      BigDecimal previousClose,
+      BigDecimal openPrice,
+      BigDecimal gap,
+      String nearestRatio,
+      String detail,
+      String status,
+      String resolution,
+      BigDecimal factor,
+      Instant resolvedAt,
+      String resolvedBy,
+      String resolutionNote,
+      Instant createdAt) {}
+
+  private static final String REVIEW_COLUMNS =
+      "id, account_id, instrument_id, symbol, kind, session_date, previous_close, open_price, gap,"
+          + " nearest_ratio, detail, status, resolution, factor, resolved_at, resolved_by,"
+          + " resolution_note, created_at";
+
+  private static Review review(ResultSet rs, int n) throws SQLException {
+    Timestamp resolved = rs.getTimestamp(15);
+    return new Review(
+        rs.getLong(1),
+        rs.getLong(2),
+        rs.getLong(3),
+        rs.getString(4),
+        rs.getString(5),
+        rs.getObject(6, LocalDate.class),
+        rs.getBigDecimal(7),
+        rs.getBigDecimal(8),
+        rs.getBigDecimal(9),
+        rs.getString(10),
+        rs.getString(11),
+        rs.getString(12),
+        rs.getString(13),
+        rs.getBigDecimal(14),
+        resolved == null ? null : resolved.toInstant(),
+        rs.getString(16),
+        rs.getString(17),
+        rs.getTimestamp(18).toInstant());
+  }
+
+  long insertReview(
+      long accountId,
+      long instrumentId,
+      String symbol,
+      LocalDate session,
+      BigDecimal previousClose,
+      BigDecimal open,
+      BigDecimal gap,
+      String nearestRatio,
+      String detail,
+      Instant now) {
+    return jdbc.sql(
+            """
+            insert into paper_review (account_id, instrument_id, symbol, kind, session_date,
+                previous_close, open_price, gap, nearest_ratio, detail, status, created_at)
+            values (:account, :instrument, :symbol, 'POSSIBLE_CORPORATE_ACTION', :session,
+                :prev, :open, :gap, :ratio, :detail, 'OPEN', :now)
+            returning id
+            """)
+        .param("account", accountId)
+        .param("instrument", instrumentId)
+        .param("symbol", symbol)
+        .param("session", session)
+        .param("prev", previousClose)
+        .param("open", open)
+        .param("gap", gap)
+        .param("ratio", nearestRatio)
+        .param("detail", detail)
+        .param("now", Timestamp.from(now))
+        .query(Long.class)
+        .single();
+  }
+
+  public Optional<Review> review(long id) {
+    return jdbc.sql("select " + REVIEW_COLUMNS + " from paper_review where id = :id")
+        .param("id", id)
+        .query(PaperRepository::review)
+        .optional();
+  }
+
+  /** The open review of a position, if any. */
+  Optional<Review> openReview(long accountId, long instrumentId) {
+    return jdbc.sql(
+            "select "
+                + REVIEW_COLUMNS
+                + " from paper_review where account_id = :a and instrument_id = :i"
+                + " and status = 'OPEN'")
+        .param("a", accountId)
+        .param("i", instrumentId)
+        .query(PaperRepository::review)
+        .optional();
+  }
+
+  /** Reviews of an account, newest first, optionally filtered by status. */
+  public List<Review> reviews(long accountId, String status) {
+    return jdbc.sql(
+            "select "
+                + REVIEW_COLUMNS
+                + " from paper_review where account_id = :account"
+                + " and (cast(:status as text) is null or status = cast(:status as text))"
+                + " order by id desc")
+        .param("account", accountId)
+        .param("status", status)
+        .query(PaperRepository::review)
+        .list();
+  }
+
+  /** Resolves an OPEN review; returns whether it was still open. */
+  boolean resolveReview(
+      long id, String resolution, BigDecimal factor, Instant at, String by, String note) {
+    return jdbc.sql(
+                """
+                update paper_review set status = 'RESOLVED', resolution = :resolution,
+                    factor = :factor, resolved_at = :at, resolved_by = :by, resolution_note = :note
+                where id = :id and status = 'OPEN'
+                """)
+            .param("resolution", resolution)
+            .param("factor", factor)
+            .param("at", Timestamp.from(at))
+            .param("by", by)
+            .param("note", note)
+            .param("id", id)
+            .update()
+        == 1;
+  }
+
+  /** Rewrites a held position after a split or bonus: new quantity, entry and stop. */
+  void adjustPosition(
+      long accountId, long instrumentId, long quantity, BigDecimal entry, BigDecimal stop) {
+    jdbc.sql(
+            """
+            update paper_position set quantity = :q, entry_price = :e, stop_price = :s
+            where account_id = :a and instrument_id = :i
+            """)
+        .param("q", quantity)
+        .param("e", entry)
+        .param("s", stop)
+        .param("a", accountId)
+        .param("i", instrumentId)
+        .update();
+  }
 }

@@ -87,7 +87,7 @@ class PaperTradingServiceIT extends PostgresIntegrationTest {
   @BeforeEach
   void setUp() {
     jdbc.sql(
-            "truncate paper_equity, paper_trade, paper_position, paper_order, paper_account,"
+            "truncate paper_review, paper_equity, paper_trade, paper_position, paper_order, paper_account,"
                 + " candle, backfill_item, backfill_request, instrument_alias,"
                 + " instrument_provider_key, instrument restart identity")
         .update();
@@ -294,6 +294,125 @@ class PaperTradingServiceIT extends PostgresIntegrationTest {
     assertThat(outcomes.get(0).order().status()).isEqualTo("APPROVED");
     assertThat(outcomes.get(1).ok()).isFalse();
     assertThat(outcomes.get(1).error()).contains("no order 999999");
+  }
+
+  // ---- corporate-action guard (R0-02)
+
+  private long acmeId() {
+    return jdbc.sql("select id from instrument where trading_symbol = 'ACME'")
+        .query(Long.class)
+        .single();
+  }
+
+  private void replace(LocalDate date, String o, String h, String l, String c) {
+    jdbc.sql("delete from candle where instrument_id = :id and ts = :ts")
+        .param("id", acmeId())
+        .param("ts", Timestamp.from(date.atStartOfDay(MarketZones.IST).toInstant()))
+        .update();
+    candle(acmeId(), date, o, h, l, c, 400_000);
+  }
+
+  /** Proposes on D, approves, fills on N1; returns the account id and the position. */
+  private PaperRepository.Position held() {
+    var buy = proposedBuy();
+    at(ist(n1, 8, 0)).decide(buy.id(), true, "param", null);
+    at(ist(n1, 20, 15)).process(buy.accountId(), n1);
+    return repo.positions(buy.accountId()).get(0);
+  }
+
+  @Test
+  void aSplitGapOpensAReviewInsteadOfAStopAndKeepsThePreGapMark() {
+    var p = held();
+    replace(n2, "53", "54", "52", "53"); // 1:2 split: open halves from N1's close of 106
+
+    var r = at(ist(n2, 20, 15)).process(p.accountId(), n2);
+
+    assertThat(r.exitsProposed()).isZero();
+    assertThat(r.reviewsOpened()).isEqualTo(1);
+    assertThat(repo.orders(p.accountId(), "PROPOSED", 10)).isEmpty();
+    var review = repo.reviews(p.accountId(), "OPEN").get(0);
+    assertThat(review.previousClose()).isEqualByComparingTo("106");
+    assertThat(review.nearestRatio()).isEqualTo("bonus 1:1 or split 1:2");
+    // Marked at the pre-gap close: no fake drawdown.
+    BigDecimal cash = repo.account(p.accountId()).orElseThrow().cash();
+    assertThat(r.equity())
+        .isEqualByComparingTo(
+            cash.add(new BigDecimal("106").multiply(BigDecimal.valueOf(p.quantity())))
+                .setScale(2, RoundingMode.HALF_UP));
+
+    // Next session the low is still under the old stop: still no exit while under review.
+    var r3 = at(ist(n3, 20, 15)).process(p.accountId(), n3);
+    assertThat(r3.exitsProposed()).isZero();
+    assertThat(r3.reviewsOpened()).isZero(); // one open review per position
+  }
+
+  @Test
+  void reconcilingAsASplitAdjustsThePosition() {
+    var p = held();
+    replace(n2, "53", "54", "52", "53");
+    at(ist(n2, 20, 15)).process(p.accountId(), n2);
+    var review = repo.reviews(p.accountId(), "OPEN").get(0);
+
+    var resolved =
+        at(ist(n3, 8, 0))
+            .resolveReview(review.id(), "ADJUSTED", BigDecimal.valueOf(2), "param", "NSE 1:2");
+
+    assertThat(resolved.status()).isEqualTo("RESOLVED");
+    var after = repo.positions(p.accountId()).get(0);
+    assertThat(after.quantity()).isEqualTo(p.quantity() * 2);
+    assertThat(after.entryPrice())
+        .isEqualByComparingTo(
+            p.entryPrice().divide(BigDecimal.valueOf(2), 4, RoundingMode.HALF_UP));
+    assertThat(after.stopPrice())
+        .isEqualByComparingTo(p.stopPrice().divide(BigDecimal.valueOf(2), 4, RoundingMode.HALF_UP));
+  }
+
+  @Test
+  void aFactorGivingFractionalSharesIsRefusedAndNothingChanges() {
+    var p = held();
+    replace(n2, "53", "54", "52", "53");
+    at(ist(n2, 20, 15)).process(p.accountId(), n2);
+    var review = repo.reviews(p.accountId(), "OPEN").get(0);
+    var factor = p.quantity() % 2 == 0 ? new BigDecimal("1.25") : new BigDecimal("1.5");
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> at(ist(n3, 8, 0)).resolveReview(review.id(), "ADJUSTED", factor, "param", null))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThat(repo.review(review.id()).orElseThrow().status()).isEqualTo("OPEN");
+    assertThat(repo.positions(p.accountId()).get(0).quantity()).isEqualTo(p.quantity());
+  }
+
+  @Test
+  void reconcilingAsARealMoveLetsTheStopWorkNextSession() {
+    var p = held();
+    replace(n2, "53", "54", "52", "53");
+    at(ist(n2, 20, 15)).process(p.accountId(), n2);
+    var review = repo.reviews(p.accountId(), "OPEN").get(0);
+    at(ist(n3, 8, 0)).resolveReview(review.id(), "NO_CORPORATE_ACTION", null, "param", "news");
+    replace(n3, "52", "53", "50", "51"); // no gap from 53; low still under the stop
+
+    var r = at(ist(n3, 20, 15)).process(p.accountId(), n3);
+
+    assertThat(r.exitsProposed()).isEqualTo(1);
+    assertThat(repo.orders(p.accountId(), "PROPOSED", 10).get(0).reason()).isEqualTo("STOP");
+  }
+
+  @Test
+  void anApprovedSellIsNotFilledAtAGappedOpen() {
+    var p = held();
+    at(ist(n2, 20, 15)).process(p.accountId(), n2); // low 90 breaches the stop: SELL for N3
+    var sell = repo.orders(p.accountId(), "PROPOSED", 10).get(0);
+    at(ist(n3, 9, 0)).decide(sell.id(), true, "param", null);
+    replace(n3, "46", "47", "45", "46"); // halves from N2's close of 92
+
+    var r = at(ist(n3, 20, 15)).process(p.accountId(), n3);
+
+    assertThat(r.unfilled()).isEqualTo(1);
+    assertThat(r.reviewsOpened()).isEqualTo(1);
+    assertThat(repo.order(sell.id()).orElseThrow().statusNote())
+        .contains("possible corporate action");
+    assertThat(repo.positions(p.accountId())).hasSize(1);
+    assertThat(repo.trades(p.accountId())).isEmpty();
   }
 
   @Test

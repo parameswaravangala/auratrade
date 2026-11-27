@@ -61,6 +61,7 @@ public class PaperTradingService {
       int unfilled,
       int exitsProposed,
       int entriesProposed,
+      int reviewsOpened,
       BigDecimal equity,
       String note) {}
 
@@ -193,6 +194,70 @@ public class PaperTradingService {
     return out;
   }
 
+  // ---- reviews (possible corporate actions)
+
+  /**
+   * Reconciles a possible corporate action, after a person has checked the exchange's records.
+   *
+   * @param resolution NO_CORPORATE_ACTION: the gap was a real price move; the position's normal
+   *     exit rules resume next session. ADJUSTED: a split or bonus; the position becomes {@code
+   *     factor} times the shares at entry and stop divided by {@code factor} (for a 1:1 bonus or a
+   *     1:2 split, factor 2), so its value and risk are unchanged
+   * @throws IllegalArgumentException for bad input, or a factor giving a fractional quantity
+   * @throws IllegalStateException if the review is not open or the position is gone
+   */
+  public PaperRepository.Review resolveReview(
+      long reviewId, String resolution, BigDecimal factor, String by, String note) {
+    if (by == null || by.isBlank()) {
+      throw new IllegalArgumentException("say who reconciled it");
+    }
+    return tx.execute(status -> {
+      var r =
+          repo.review(reviewId)
+              .orElseThrow(() -> new IllegalArgumentException("no review " + reviewId));
+      if (!r.status().equals("OPEN")) {
+        throw new IllegalStateException("review " + reviewId + " is already resolved");
+      }
+      switch (resolution == null ? "" : resolution) {
+        case "NO_CORPORATE_ACTION" -> {
+          if (factor != null) {
+            throw new IllegalArgumentException("NO_CORPORATE_ACTION takes no factor");
+          }
+        }
+        case "ADJUSTED" -> {
+          if (factor == null || factor.signum() <= 0) {
+            throw new IllegalArgumentException("ADJUSTED needs a positive factor");
+          }
+          Position p =
+              repo.positions(r.accountId()).stream()
+                  .filter(x -> x.instrumentId() == r.instrumentId())
+                  .findFirst()
+                  .orElseThrow(() ->
+                      new IllegalStateException("no position in " + r.symbol() + " to adjust"));
+          BigDecimal qty = factor.multiply(BigDecimal.valueOf(p.quantity()));
+          if (qty.stripTrailingZeros().scale() > 0) {
+            throw new IllegalArgumentException(
+                p.quantity()
+                    + " shares x "
+                    + factor.toPlainString()
+                    + " is not a whole number; fractional entitlements are not modelled");
+          }
+          repo.adjustPosition(
+              r.accountId(),
+              r.instrumentId(),
+              qty.longValueExact(),
+              p.entryPrice().divide(factor, 4, RoundingMode.HALF_UP),
+              p.stopPrice().divide(factor, 4, RoundingMode.HALF_UP));
+        }
+        default ->
+            throw new IllegalArgumentException(
+                "resolution must be NO_CORPORATE_ACTION or ADJUSTED");
+      }
+      repo.resolveReview(reviewId, resolution, factor, clock.instant(), by, note);
+      return repo.review(reviewId).orElseThrow();
+    });
+  }
+
   // ---- daily processing
 
   /** Processes session {@code d} for one account, in one transaction. */
@@ -224,11 +289,24 @@ public class PaperTradingService {
     Map<Long, Series> series = load(source, d, ids);
     int filled = 0;
     int unfilled = 0;
+    int reviews = 0;
     for (Order o : approved) {
       Candle bar = barOn(series.get(o.instrumentId()), d);
       if (bar == null) {
         repo.markUnfilled(o.id(), "no candle on " + d + " (holiday, suspension or missing data)");
         unfilled++;
+        continue;
+      }
+      // Fail closed: never trade at an open that may be a split or bonus (prices are unadjusted).
+      var gap =
+          CorporateActionGuard.check(previousClose(series.get(o.instrumentId()), d), bar.open());
+      if (gap.isPresent()) {
+        repo.markUnfilled(o.id(), "possible corporate action at the open: " + gap.get().describe());
+        unfilled++;
+        if (held.containsKey(o.instrumentId())
+            && openReview(accountId, held.get(o.instrumentId()), d, gap.get())) {
+          reviews++;
+        }
         continue;
       }
       if (o.side().equals("SELL")) {
@@ -324,6 +402,18 @@ public class PaperTradingService {
       if (bar == null) {
         continue;
       }
+      // A position under review gets no automatic exit until a person reconciles it.
+      if (repo.openReview(accountId, p.instrumentId()).isPresent()) {
+        continue;
+      }
+      var gap =
+          CorporateActionGuard.check(previousClose(series.get(p.instrumentId()), d), bar.open());
+      if (gap.isPresent()) {
+        if (openReview(accountId, p, d, gap.get())) {
+          reviews++;
+        }
+        continue;
+      }
       int sessions = p.sessionsHeld() + 1;
       repo.setSessionsHeld(accountId, p.instrumentId(), sessions);
       String reason = null;
@@ -360,7 +450,12 @@ public class PaperTradingService {
     BigDecimal equity = cash;
     for (Position p : held.values()) {
       Candle last = lastOnOrBefore(series.get(p.instrumentId()), d);
-      BigDecimal mark = last == null ? p.entryPrice() : last.close();
+      // Under review: keep the pre-gap close, so an unadjusted split books no drawdown.
+      var review = repo.openReview(accountId, p.instrumentId());
+      BigDecimal mark =
+          review.isPresent()
+              ? review.get().previousClose()
+              : last == null ? p.entryPrice() : last.close();
       equity = equity.add(mark.multiply(BigDecimal.valueOf(p.quantity())));
     }
 
@@ -446,7 +541,9 @@ public class PaperTradingService {
         accountId,
         new PaperRepository.EquityPoint(
             d, cash.setScale(2, RoundingMode.HALF_UP), eq, held.size()));
-    var r = new SessionResult(accountId, d, expired, filled, unfilled, exits, entries, eq, note);
+    var r =
+        new SessionResult(
+            accountId, d, expired, filled, unfilled, exits, entries, reviews, eq, note);
     log.info("Paper session {}: {}", d, r);
     return r;
   }
@@ -473,6 +570,39 @@ public class PaperTradingService {
           s -> out.put(s.instrumentId(), s));
     }
     return out;
+  }
+
+  /** Close of the bar before {@code d}'s bar, or null without one. */
+  private static BigDecimal previousClose(Series s, LocalDate d) {
+    if (s == null || s.candles().size() < 2 || barOn(s, d) == null) {
+      return null;
+    }
+    return s.candles().get(s.candles().size() - 2).close();
+  }
+
+  /** Opens a review for a held position unless one is open; returns whether it opened one. */
+  private boolean openReview(
+      long accountId, Position p, LocalDate d, CorporateActionGuard.Evidence e) {
+    if (repo.openReview(accountId, p.instrumentId()).isPresent()) {
+      return false;
+    }
+    repo.insertReview(
+        accountId,
+        p.instrumentId(),
+        p.symbol(),
+        d,
+        e.previousClose(),
+        e.open(),
+        e.gap(),
+        e.nearestRatio(),
+        "Possible split or bonus on "
+            + d
+            + ": "
+            + e.describe()
+            + ". No automatic exit until reconciled; check the exchange's corporate actions.",
+        clock.instant());
+    log.warn("Paper account {}: {} {} under review: {}", accountId, p.symbol(), d, e.describe());
+    return true;
   }
 
   private static Candle barOn(Series s, LocalDate d) {
