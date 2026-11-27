@@ -1,5 +1,9 @@
 import type {
   Candle,
+  PaperAccount,
+  PaperAccountView,
+  PaperOrder,
+  PaperTrade,
   JobRun,
   PortfolioReport,
   ScreenInfo,
@@ -228,3 +232,123 @@ export const SWEEP: SweepReport = {
   rowsByInSampleSharpe: [row(3, 120, true, 20.2), row(2, 60, false, 4.1), row(2, 120, true, 11)],
   caveats: [],
 };
+
+// ---- Paper trading ----
+
+export const PAPER_ACCOUNT: PaperAccount = {
+  id: 1,
+  name: "rs-paper",
+  screen: "relative-strength-leaders",
+  initialCapital: 1000000,
+  cash: 812345.5,
+  maxPositions: 10,
+  riskPerTrade: 0.01,
+  maxPosition: 0.2,
+  atrMultiple: 3,
+  maxHoldSessions: 120,
+  regimeFilter: true,
+  slippageBps: 5,
+  goLiveCriteria: "At least 12 months and 50 closed trades; beat Nifty after costs.",
+  startedOn: "2026-11-20",
+  active: true,
+};
+
+export function order(p: Partial<PaperOrder> & Pick<PaperOrder, "id" | "symbol">): PaperOrder {
+  return {
+    accountId: 1,
+    instrumentId: p.id + 100,
+    side: "BUY",
+    quantity: 120,
+    reason: "ENTRY",
+    signalDate: "2026-11-26",
+    fillDate: "2026-11-27",
+    stopPrice: 410.5,
+    score: 18.25,
+    detail: "6-month return 42% vs Nifty 6%; stop 410.5 (3 x ATR)",
+    status: "PROPOSED",
+    decidedAt: null,
+    decidedBy: null,
+    fillPrice: null,
+    fillCosts: null,
+    statusNote: null,
+    referencePrice: 450,
+    approvedQuantity: null,
+    limitPrice: null,
+    decideBy: "2026-11-27T03:45:00Z",
+    ...p,
+  };
+}
+
+export const PROPOSED: PaperOrder[] = [
+  order({ id: 11, symbol: "ACME" }),
+  order({
+    id: 12,
+    symbol: "NOVA",
+    side: "SELL",
+    quantity: 40,
+    reason: "STOP",
+    stopPrice: null,
+    score: null,
+    detail: "Low 98.2 reached the stop 99",
+    referencePrice: 98.5,
+  }),
+];
+
+export const PAPER_VIEW: PaperAccountView = {
+  account: PAPER_ACCOUNT,
+  positions: [
+    {
+      accountId: 1,
+      instrumentId: 9,
+      symbol: "NOVA",
+      quantity: 40,
+      entryPrice: 120,
+      entryDate: "2026-11-21",
+      entryCosts: 12.4,
+      stopPrice: 99,
+      sessionsHeld: 4,
+    },
+  ],
+  proposed: PROPOSED,
+  equity: [
+    { date: "2026-11-24", cash: 995000, equity: 1001000, positions: 1 },
+    { date: "2026-11-25", cash: 812345.5, equity: 1004200, positions: 2 },
+    { date: "2026-11-26", cash: 812345.5, equity: 1012345.5, positions: 2 },
+  ],
+};
+
+export const DECIDED: PaperOrder[] = [
+  order({
+    id: 5,
+    symbol: "ZETA",
+    fillDate: "2026-11-25",
+    status: "FILLED",
+    decidedAt: "2026-11-24T16:10:00Z",
+    decidedBy: "Tester",
+    fillPrice: 251.35,
+    fillCosts: 31.2,
+  }),
+  order({
+    id: 6,
+    symbol: "OMEGA",
+    fillDate: "2026-11-25",
+    status: "EXPIRED",
+    statusNote: "not decided before the open",
+  }),
+];
+
+export const PAPER_TRADES: PaperTrade[] = [
+  {
+    id: 1,
+    symbol: "ZETA",
+    quantity: 50,
+    entryDate: "2026-11-21",
+    entryPrice: 250,
+    exitDate: "2026-11-25",
+    exitPrice: 262.5,
+    exitReason: "TIME",
+    sessionsHeld: 3,
+    costs: 45.1,
+    netPnl: 579.9,
+  },
+];

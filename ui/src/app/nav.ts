@@ -35,14 +35,14 @@ export const NAV: NavItem[] = [
     label: "Approval queue",
     subtitle: "you decide every paper order",
     icon: CircleCheckBig,
-    live: false,
+    live: true,
   },
   {
     to: "/portfolio",
     label: "Paper portfolio",
     subtitle: "positions and journal",
     icon: BriefcaseBusiness,
-    live: false,
+    live: true,
   },
   {
     to: "/agents",

@@ -6,11 +6,17 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import { getJson } from "./client";
 import {
   Candles,
+  DecideOutcomes,
   Health,
   IngestionResult,
   JobRuns,
   JobTriggered,
   LlmResult,
+  PaperAccounts,
+  PaperAccountView,
+  PaperOrder,
+  PaperOrders,
+  PaperTrades,
   PortfolioReport,
   Resolution,
   ScreenInfos,
@@ -34,6 +40,11 @@ export const keys = {
   shortlist: (screen: string) => ["screener", "run", screen] as const,
   portfolio: (p: PortfolioParams) => ["backtest", "portfolio", p] as const,
   sweep: (p: SweepParams) => ["backtest", "sweep", p] as const,
+  paper: ["paper"] as const,
+  paperAccounts: ["paper", "accounts"] as const,
+  paperAccount: (id: number) => ["paper", "account", id] as const,
+  paperOrders: (id: number) => ["paper", "orders", id] as const,
+  paperTrades: (id: number) => ["paper", "trades", id] as const,
 };
 
 export function useHealth() {
@@ -82,18 +93,20 @@ export function useResolve(name: string) {
   });
 }
 
+const candlesQuery = (symbol: string, from: string, to: string) => ({
+  queryKey: keys.candles(symbol, from, to),
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    getJson(
+      `/dev/marketdata/candles?symbol=${encodeURIComponent(symbol)}&interval=DAY&from=${from}&to=${to}`,
+      Candles,
+      { signal },
+    ),
+  enabled: symbol.length > 0,
+  retry: false,
+});
+
 export function useCandles(symbol: string, from: string, to: string) {
-  return useQuery({
-    queryKey: keys.candles(symbol, from, to),
-    queryFn: ({ signal }) =>
-      getJson(
-        `/dev/marketdata/candles?symbol=${encodeURIComponent(symbol)}&interval=DAY&from=${from}&to=${to}`,
-        Candles,
-        { signal },
-      ),
-    enabled: symbol.length > 0,
-    retry: false,
-  });
+  return useQuery(candlesQuery(symbol, from, to));
 }
 
 /** Dev only: asks the provider for candles, validates and stores them. */
@@ -229,3 +242,102 @@ const EMPTY_PORTFOLIO: PortfolioParams = {
   costs: true,
 };
 const EMPTY_SWEEP: SweepParams = { screen: "", from: "", split: "", to: "" };
+
+// ---- Paper trading (ADR 0024). Code proposes, a person decides every order. ----
+
+const PAPER = "/api/v1/paper";
+
+export function usePaperAccounts() {
+  return useQuery({
+    queryKey: keys.paperAccounts,
+    queryFn: ({ signal }) => getJson(`${PAPER}/accounts`, PaperAccounts, { signal }),
+    staleTime: 60_000,
+  });
+}
+
+/** One account with its positions, proposed orders and equity. Refreshes each minute. */
+export function usePaperAccount(id: number | undefined) {
+  return useQuery({
+    queryKey: keys.paperAccount(id ?? 0),
+    queryFn: ({ signal }) => getJson(`${PAPER}/accounts/${String(id)}`, PaperAccountView, { signal }),
+    enabled: id !== undefined,
+    refetchInterval: 60_000,
+  });
+}
+
+/** The account's newest orders in every status, for the decision log. */
+export function usePaperOrders(id: number | undefined, limit = 50) {
+  return useQuery({
+    queryKey: keys.paperOrders(id ?? 0),
+    queryFn: ({ signal }) =>
+      getJson(`${PAPER}/accounts/${String(id)}/orders?limit=${limit}`, PaperOrders, { signal }),
+    enabled: id !== undefined,
+    refetchInterval: 60_000,
+  });
+}
+
+export function usePaperTrades(id: number | undefined) {
+  return useQuery({
+    queryKey: keys.paperTrades(id ?? 0),
+    queryFn: ({ signal }) => getJson(`${PAPER}/accounts/${String(id)}/trades`, PaperTrades, { signal }),
+    enabled: id !== undefined,
+  });
+}
+
+export type Decision = {
+  orderId: number;
+  approve: boolean;
+  by: string;
+  note: string;
+  /** BUY only: fewer shares than proposed (1 to the proposed quantity). */
+  quantity?: number;
+  /** BUY: highest acceptable fill; SELL: lowest. */
+  limitPrice?: number;
+};
+
+/**
+ * Approves or rejects one PROPOSED order. The backend refuses after 09:15 IST on the fill date and
+ * records who decided and why. Never retried: a decision is sent once, on a person's click.
+ */
+export function useDecide() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (d: Decision) =>
+      getJson(`${PAPER}/orders/${String(d.orderId)}/${d.approve ? "approve" : "reject"}`, PaperOrder, {
+        method: "POST",
+        body: JSON.stringify({
+          by: d.by,
+          note: d.note,
+          ...(d.quantity !== undefined && { quantity: d.quantity }),
+          ...(d.limitPrice !== undefined && { limitPrice: d.limitPrice }),
+        }),
+        contentType: "application/json",
+      }),
+    retry: false,
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.paper }),
+  });
+}
+
+export type ManyDecisions = { orderIds: number[]; approve: boolean; by: string; note: string };
+export type DecisionOutcome = { orderId: number; ok: boolean; message: string | null };
+
+/**
+ * Decides several orders the person ticked and confirmed together, in one call. The backend decides
+ * each on its own and reports every outcome; a refusal does not stop the rest. No quantity or limit:
+ * edits go through the single-order approval.
+ */
+export function useDecideMany() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (d: ManyDecisions): Promise<DecisionOutcome[]> => {
+      const out = await getJson(`${PAPER}/orders/decide`, DecideOutcomes, {
+        method: "POST",
+        body: JSON.stringify(d),
+        contentType: "application/json",
+      });
+      return out.map((o) => ({ orderId: o.orderId, ok: o.ok, message: o.error }));
+    },
+    retry: false,
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.paper }),
+  });
+}

@@ -12,6 +12,8 @@ import { About } from "@/features/about/About";
 import { CommandCenter } from "@/features/command-center/CommandCenter";
 import { ComingSoon } from "@/features/coming/ComingSoon";
 import { Dossier } from "@/features/dossier/Dossier";
+import { ApprovalQueue } from "@/features/paper/ApprovalQueue";
+import { PaperPortfolio } from "@/features/paper/PaperPortfolio";
 import { PlaybookLab } from "@/features/playbooks/PlaybookLab";
 import { RANGES, type RangeKey } from "@/lib/candles";
 
@@ -58,7 +60,21 @@ const playbooksRoute = createRoute({
   component: PlaybookLab,
 });
 
-const coming = (path: "/research" | "/approvals" | "/portfolio" | "/agents" | "/calendar") =>
+const PaperSearch = z.object({ account: z.coerce.number().int().positive().optional().catch(undefined) });
+const approvalsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/approvals",
+  validateSearch: (s) => PaperSearch.parse(s),
+  component: ApprovalQueue,
+});
+const portfolioRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/portfolio",
+  validateSearch: (s) => PaperSearch.parse(s),
+  component: PaperPortfolio,
+});
+
+const coming = (path: "/research" | "/agents" | "/calendar") =>
   createRoute({ getParentRoute: () => rootRoute, path, component: () => <ComingSoon path={path} /> });
 
 const aboutRoute = createRoute({ getParentRoute: () => rootRoute, path: "/about", component: About });
@@ -68,8 +84,8 @@ const routeTree = rootRoute.addChildren([
   dossierRoute,
   coming("/research"),
   playbooksRoute,
-  coming("/approvals"),
-  coming("/portfolio"),
+  approvalsRoute,
+  portfolioRoute,
   coming("/agents"),
   coming("/calendar"),
   aboutRoute,
