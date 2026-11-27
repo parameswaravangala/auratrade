@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 /**
- * Job history and runner (ADR 0017). The lease must outlast the longest run; a crashed holder's
- * lease simply expires, after which the next trigger takes over.
+ * Job history and runner (ADR 0017). A heartbeat renews the lease while a job runs, so it can be
+ * short: a killed holder's lease expires within minutes, and the next trigger takes over.
  */
 @Configuration(proxyBeanMethods = false)
 class JobsConfig {
@@ -21,7 +21,7 @@ class JobsConfig {
 
   @Bean
   JobRunner jobRunner(
-      JobRunRepository runs, Clock clock, @Value("${auratrade.jobs.lease:PT3H}") Duration lease) {
+      JobRunRepository runs, Clock clock, @Value("${auratrade.jobs.lease:PT10M}") Duration lease) {
     return new JobRunner(runs, clock, lease);
   }
 }

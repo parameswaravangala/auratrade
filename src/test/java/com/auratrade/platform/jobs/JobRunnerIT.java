@@ -29,7 +29,7 @@ class JobRunnerIT extends PostgresIntegrationTest {
   private final Clock clock = Clock.fixed(Instant.parse("2026-11-26T14:00:00Z"), ZoneOffset.UTC);
 
   /** Owes every day after the last completed one up to "today"; records what it was asked to do. */
-  static final class DailyJob implements ScheduledJob {
+  static class DailyJob implements ScheduledJob {
     final List<ScheduledJob.JobWindow> executed = new ArrayList<>();
     LocalDate today = LocalDate.parse("2026-11-26");
     RuntimeException failWith;
@@ -103,6 +103,7 @@ class JobRunnerIT extends PostgresIntegrationTest {
 
     assertThat(runner().run(job, Trigger.SCHEDULE)).isEqualTo(Result.FAILED);
     assertThat(lastStatus()).isEqualTo(Status.FAILED);
+    assertThat(runs.recent(1).get(0).detail()).isEqualTo("IllegalStateException: provider down");
 
     job.failWith = null;
     assertThat(runner().run(job, Trigger.SCHEDULE)).isEqualTo(Result.RAN);
@@ -134,5 +135,146 @@ class JobRunnerIT extends PostgresIntegrationTest {
     var later =
         new JobRunner(runs, Clock.offset(clock, Duration.ofMinutes(31)), Duration.ofHours(1));
     assertThat(later.run(job, Trigger.SCHEDULE)).isEqualTo(Result.RAN);
+  }
+
+  @Test
+  void aRunLeftRunningByAStoppedProcessIsClosedByTheNextTrigger() {
+    var job = new DailyJob();
+    LocalDate d = LocalDate.parse("2026-11-26");
+    // A process started this run, then was killed: no outcome, and its lease has lapsed.
+    long orphan = runs.start(job.name(), Trigger.SCHEDULE, d, d, clock.instant());
+
+    assertThat(runner().run(job, Trigger.STARTUP)).isEqualTo(Result.RAN);
+
+    var closed = runs.recent(10).stream().filter(r -> r.id() == orphan).findFirst().orElseThrow();
+    assertThat(closed.status()).isEqualTo(Status.FAILED);
+    assertThat(closed.detail()).startsWith("abandoned:");
+    assertThat(closed.finishedAt()).isNotNull();
+    assertThat(job.executed).hasSize(1); // the window was still owed and ran again
+  }
+
+  @Test
+  void theHeartbeatKeepsTheLeaseWhileAJobOutlastsIt() {
+    var time = new MovingClock(clock.instant());
+    Duration lease = Duration.ofMillis(300);
+    var job =
+        new DailyJob() {
+          boolean stolen;
+
+          @Override
+          public JobOutcome execute(JobWindow window) {
+            // Run past the original lease in two steps, giving the heartbeat time to renew.
+            for (int i = 0; i < 2; i++) {
+              time.advance(Duration.ofMillis(200));
+              sleep(400);
+            }
+            stolen = runs.tryLock(name(), "other-instance", time.instant(), lease);
+            return super.execute(window);
+          }
+        };
+
+    assertThat(new JobRunner(runs, time, lease).run(job, Trigger.SCHEDULE)).isEqualTo(Result.RAN);
+    assertThat(job.stolen).isFalse();
+  }
+
+  @Test
+  void aReleasedLeaseIsNeverRenewedByALateHeartbeat() {
+    var time = new MovingClock(clock.instant());
+    var runner = new JobRunner(runs, time, Duration.ofMinutes(10));
+    assertThat(runs.tryLock("test-daily", runner.owner(), time.instant(), Duration.ofMinutes(10)))
+        .isTrue();
+    var guard = runner.new LeaseGuard("test-daily");
+
+    guard.release();
+    // A heartbeat that read the clock just before the release now arrives: it must do nothing.
+    time.advance(Duration.ofSeconds(-1));
+    guard.beat();
+    time.advance(Duration.ofSeconds(1));
+
+    assertThat(runs.tryLock("test-daily", "other-instance", time.instant(), Duration.ofMinutes(1)))
+        .isTrue();
+    runner.close();
+  }
+
+  @Test
+  void theSameJobCannotRunTwiceInOneProcessEvenWithoutItsLease() {
+    var runner = runner();
+    var nested = new java.util.concurrent.atomic.AtomicReference<Result>();
+    var job =
+        new DailyJob() {
+          @Override
+          public JobOutcome execute(JobWindow window) {
+            // The lease is lost (say, heartbeats failed): another trigger here must still wait.
+            jdbc.sql("update job_lock set locked_until = :t")
+                .param("t", java.sql.Timestamp.from(clock.instant().minusSeconds(1)))
+                .update();
+            nested.set(runner.run(this, Trigger.MANUAL));
+            return super.execute(window);
+          }
+        };
+
+    assertThat(runner.run(job, Trigger.SCHEDULE)).isEqualTo(Result.RAN);
+
+    assertThat(nested.get()).isEqualTo(Result.LOCKED);
+    assertThat(job.executed).hasSize(1);
+    assertThat(lastStatus()).isEqualTo(Status.SUCCEEDED);
+  }
+
+  @Test
+  void aRunClosedAsAbandonedElsewhereStaysClosedWhenItFinishes() {
+    var job =
+        new DailyJob() {
+          @Override
+          public JobOutcome execute(JobWindow window) {
+            // Another process took the lapsed lease and closed this live run as abandoned.
+            runs.closeAbandoned(name(), clock.instant());
+            return super.execute(window);
+          }
+        };
+
+    assertThat(runner().run(job, Trigger.SCHEDULE)).isEqualTo(Result.RAN);
+
+    var run = runs.recent(1).get(0);
+    assertThat(run.status()).isEqualTo(Status.FAILED);
+    assertThat(run.detail())
+        .startsWith("abandoned:")
+        .contains("Finished after being closed as abandoned: SUCCEEDED, 10 ok, 0 failed.");
+  }
+
+  private static void sleep(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /** A clock the test moves forward by hand, read by the heartbeat thread too. */
+  static final class MovingClock extends Clock {
+    private volatile Instant now;
+
+    MovingClock(Instant start) {
+      this.now = start;
+    }
+
+    void advance(Duration d) {
+      now = now.plus(d);
+    }
+
+    @Override
+    public Instant instant() {
+      return now;
+    }
+
+    @Override
+    public ZoneOffset getZone() {
+      return ZoneOffset.UTC;
+    }
+
+    @Override
+    public Clock withZone(java.time.ZoneId zone) {
+      throw new UnsupportedOperationException();
+    }
   }
 }
