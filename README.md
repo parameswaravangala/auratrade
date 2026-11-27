@@ -2,6 +2,8 @@
 
 AI-assisted trading research platform for Indian markets (NSE). Phase 1: research, playbooks and paper trading. Java, Spring Boot 4, Spring AI 2.x, PostgreSQL with pgvector.
 
+Current status, next steps and risks: [PROJECT_STATUS.md](PROJECT_STATUS.md). Backlog: [docs/backlog.md](docs/backlog.md).
+
 ## Prerequisites
 - JDK 21 or newer
 - Maven (only once, to generate the wrapper)
