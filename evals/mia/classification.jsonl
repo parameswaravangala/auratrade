@@ -1,0 +1,150 @@
+{"id":"c001","source":"ANNOUNCEMENT","text":"Kaveri Polymers: outcome of board meeting. The board approved the unaudited financial results for the quarter ended September.","eventType":"EARNINGS_RESULT"}
+{"id":"c002","source":"NEWS","text":"Sahyadri Cement's quarterly profit fell as fuel costs rose and volumes stayed flat.","eventType":"EARNINGS_RESULT"}
+{"id":"c003","source":"NEWS","text":"Narmada Textiles posts a net loss for the quarter, its third in a row.","eventType":"EARNINGS_RESULT"}
+{"id":"c004","source":"ANNOUNCEMENT","text":"Vindhya Power submits audited standalone and consolidated results for the financial year.","eventType":"EARNINGS_RESULT"}
+{"id":"c005","source":"NEWS","text":"Deccan Auto Parts beats street estimates on revenue; margins improve on lower steel prices.","eventType":"EARNINGS_RESULT"}
+{"id":"c006","source":"NEWS","text":"Konkan Shipping's operating profit doubled year on year on higher freight rates.","eventType":"EARNINGS_RESULT"}
+{"id":"c007","source":"ANNOUNCEMENT","text":"Malabar Spices: financial results for the half year, with the limited review report of the auditors.","eventType":"EARNINGS_RESULT"}
+{"id":"c008","source":"NEWS","text":"Aravalli Mining reports lower quarterly revenue after monsoon rains disrupted output.","eventType":"EARNINGS_RESULT"}
+{"id":"c009","source":"NEWS","text":"Ganga Finance's net interest income rises; asset quality steady in the quarter.","eventType":"EARNINGS_RESULT"}
+{"id":"c010","source":"NEWS","text":"Godavari Pharma profit rises on US generics; the company also recommends a final dividend.","eventType":"EARNINGS_RESULT","notes":"Results plus dividend in one item. Single-label taxonomy forces a choice; the results are the main event. Overlap with DIVIDEND."}
+{"id":"c011","source":"ANNOUNCEMENT","text":"Nilgiri Tea: board approves quarterly results and keeps its full-year outlook unchanged.","eventType":"EARNINGS_RESULT","notes":"Mentions outlook, but no new guidance; GUIDANCE would need a change or a new number."}
+{"id":"c012","source":"NEWS","text":"Satpura Steel swings to a quarterly profit from a loss a year ago.","eventType":"EARNINGS_RESULT"}
+{"id":"c013","source":"NEWS","text":"Brahmaputra Logistics' revenue misses estimates as e-commerce volumes slow.","eventType":"EARNINGS_RESULT"}
+{"id":"c014","source":"ANNOUNCEMENT","text":"Tapti Chemicals: integrated filing (financial) for the quarter.","eventType":"EARNINGS_RESULT","notes":"Terse filing title; a rules-first classifier should catch it from the subject."}
+{"id":"c015","source":"NEWS","text":"Chambal Agro reports record quarterly sales on a strong kharif season.","eventType":"EARNINGS_RESULT"}
+{"id":"c016","source":"ANNOUNCEMENT","text":"Kosi Infra: the board declared an interim dividend and fixed the record date.","eventType":"DIVIDEND"}
+{"id":"c017","source":"NEWS","text":"Sindhu Software to pay a special dividend to mark its silver jubilee.","eventType":"DIVIDEND"}
+{"id":"c018","source":"ANNOUNCEMENT","text":"Pench Hospitality: intimation of record date for the final dividend.","eventType":"DIVIDEND"}
+{"id":"c019","source":"NEWS","text":"Bhadra Bank skips its dividend this year to conserve capital.","eventType":"DIVIDEND"}
+{"id":"c020","source":"ANNOUNCEMENT","text":"Thar Solar: board recommends a final dividend, subject to shareholder approval at the AGM.","eventType":"DIVIDEND"}
+{"id":"c021","source":"NEWS","text":"Kaziranga Foods raises its dividend payout ratio under a new capital allocation policy.","eventType":"DIVIDEND"}
+{"id":"c022","source":"ANNOUNCEMENT","text":"Western Ghats Electric: payment of second interim dividend completed.","eventType":"DIVIDEND"}
+{"id":"c023","source":"NEWS","text":"Shares of Kaveri Polymers trade ex-dividend today.","eventType":"DIVIDEND"}
+{"id":"c024","source":"ANNOUNCEMENT","text":"Sahyadri Cement: TDS on dividend, communication to shareholders.","eventType":"DIVIDEND","notes":"Administrative notice about a dividend; low significance but still DIVIDEND."}
+{"id":"c025","source":"NEWS","text":"Narmada Textiles declares its first dividend since listing.","eventType":"DIVIDEND"}
+{"id":"c026","source":"ANNOUNCEMENT","text":"Vindhya Power: board approves interim dividend for the year.","eventType":"DIVIDEND"}
+{"id":"c027","source":"NEWS","text":"Deccan Auto Parts cuts its interim dividend as cash flows weaken.","eventType":"DIVIDEND"}
+{"id":"c028","source":"ANNOUNCEMENT","text":"Konkan Shipping: unclaimed dividend to be transferred to the investor protection fund.","eventType":"DIVIDEND","notes":"Judgement call: routine compliance notice. Could be OTHER."}
+{"id":"c029","source":"NEWS","text":"Malabar Spices announces a dividend along with its annual results.","eventType":"DIVIDEND","notes":"Mirror of c010: here the headline leads with the dividend. Overlap with EARNINGS_RESULT; label follows the headline."}
+{"id":"c030","source":"ANNOUNCEMENT","text":"Aravalli Mining: record date for the interim dividend fixed for next Friday.","eventType":"DIVIDEND"}
+{"id":"c031","source":"ANNOUNCEMENT","text":"Ganga Finance: appointment of a new chief financial officer with effect from next month.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c032","source":"NEWS","text":"Godavari Pharma's managing director resigns, citing personal reasons.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c033","source":"ANNOUNCEMENT","text":"Nilgiri Tea: re-appointment of the whole-time director for five years.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c034","source":"NEWS","text":"Satpura Steel names an outsider as its new chief executive.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c035","source":"ANNOUNCEMENT","text":"Brahmaputra Logistics: resignation of an independent director before the end of term.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c036","source":"ANNOUNCEMENT","text":"Tapti Chemicals: resignation of statutory auditor.","eventType":"MANAGEMENT_CHANGE","notes":"Judgement call. An auditor is not management, and an auditor quitting can be a governance red flag. There is no GOVERNANCE type; MANAGEMENT_CHANGE is the closest."}
+{"id":"c037","source":"NEWS","text":"Chambal Agro's founder steps down as chairman; his daughter takes over.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c038","source":"ANNOUNCEMENT","text":"Kosi Infra: change in company secretary and compliance officer.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c039","source":"NEWS","text":"Sindhu Software loses its chief technology officer to a rival.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c040","source":"ANNOUNCEMENT","text":"Pench Hospitality: appointment of two additional independent directors.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c041","source":"NEWS","text":"Bhadra Bank's board picks a new managing director; the regulator's approval is awaited.","eventType":"MANAGEMENT_CHANGE","notes":"Mentions regulatory approval, but no regulatory action has happened yet."}
+{"id":"c042","source":"ANNOUNCEMENT","text":"Thar Solar: cessation of the nominee director after the lender withdrew its nomination.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c043","source":"NEWS","text":"Kaziranga Foods hires a former consumer goods executive as chief operating officer.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c044","source":"ANNOUNCEMENT","text":"Western Ghats Electric: appointment of a new chief risk officer.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c045","source":"NEWS","text":"Kaveri Polymers' CFO and CEO both quit within a week.","eventType":"MANAGEMENT_CHANGE"}
+{"id":"c046","source":"ANNOUNCEMENT","text":"Sahyadri Cement: receipt of a letter of award from a state highways authority.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c047","source":"NEWS","text":"Narmada Textiles wins an export order for technical fabrics.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c048","source":"ANNOUNCEMENT","text":"Vindhya Power: emerged as the lowest bidder for a solar project with a power distribution company.","eventType":"ORDER_WIN_CONTRACT","notes":"Lowest bidder is not yet an award. Still labelled ORDER_WIN_CONTRACT; the interpretation should say it is not final."}
+{"id":"c049","source":"NEWS","text":"Deccan Auto Parts signs a five-year supply contract with a two-wheeler maker.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c050","source":"ANNOUNCEMENT","text":"Konkan Shipping: long-term charter agreement signed for two vessels.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c051","source":"NEWS","text":"Malabar Spices bags a contract to supply a global food chain.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c052","source":"ANNOUNCEMENT","text":"Aravalli Mining: execution of a mine development and operator contract.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c053","source":"NEWS","text":"Sindhu Software wins a multi-year IT modernisation deal from a European insurer.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c054","source":"ANNOUNCEMENT","text":"Kosi Infra: order inflow update, new orders received across road and water segments.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c055","source":"NEWS","text":"Satpura Steel loses a large railway contract to a rival bidder.","eventType":"ORDER_WIN_CONTRACT","notes":"A lost order still belongs to the order type; sentiment is negative."}
+{"id":"c056","source":"ANNOUNCEMENT","text":"Brahmaputra Logistics: memorandum of understanding with a port trust for warehousing.","eventType":"ORDER_WIN_CONTRACT","notes":"Judgement call: an MoU is not binding. Could be OTHER."}
+{"id":"c057","source":"NEWS","text":"Tapti Chemicals signs an offtake agreement for its new specialty chemical.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c058","source":"ANNOUNCEMENT","text":"Western Ghats Electric: receipt of purchase order from a metro rail corporation.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c059","source":"NEWS","text":"Chambal Agro wins a government tender to supply fertiliser.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c060","source":"NEWS","text":"Pench Hospitality signs management contracts for three new hotels.","eventType":"ORDER_WIN_CONTRACT"}
+{"id":"c061","source":"ANNOUNCEMENT","text":"Bhadra Bank: board approves raising capital through a qualified institutions placement.","eventType":"FUNDRAISE"}
+{"id":"c062","source":"NEWS","text":"Thar Solar raises money from a sovereign wealth fund through a preferential issue.","eventType":"FUNDRAISE"}
+{"id":"c063","source":"ANNOUNCEMENT","text":"Kaziranga Foods: allotment of non-convertible debentures on a private placement basis.","eventType":"FUNDRAISE"}
+{"id":"c064","source":"NEWS","text":"Kaveri Polymers announces a rights issue to cut debt.","eventType":"FUNDRAISE"}
+{"id":"c065","source":"ANNOUNCEMENT","text":"Sahyadri Cement: board to consider fundraising via equity or debt instruments.","eventType":"FUNDRAISE","notes":"Only a proposal to consider. Same type, lower significance."}
+{"id":"c066","source":"NEWS","text":"Narmada Textiles' QIP closes with strong demand from mutual funds.","eventType":"FUNDRAISE"}
+{"id":"c067","source":"ANNOUNCEMENT","text":"Vindhya Power: issue of commercial paper.","eventType":"FUNDRAISE"}
+{"id":"c068","source":"NEWS","text":"Deccan Auto Parts takes a term loan from a consortium of banks for its new plant.","eventType":"FUNDRAISE","notes":"Overlap with CAPACITY_EXPANSION: the loan funds a plant. Labelled by what was announced (the loan)."}
+{"id":"c069","source":"ANNOUNCEMENT","text":"Konkan Shipping: allotment of warrants to the promoter group.","eventType":"FUNDRAISE","notes":"Promoter warrants could also read as INSIDER_TRADE. Labelled FUNDRAISE because the company issues new shares."}
+{"id":"c070","source":"NEWS","text":"Malabar Spices plans to list green bonds overseas.","eventType":"FUNDRAISE"}
+{"id":"c071","source":"ANNOUNCEMENT","text":"Aravalli Mining: rights issue opens next Monday; letter of offer filed.","eventType":"FUNDRAISE"}
+{"id":"c072","source":"NEWS","text":"Ganga Finance raises funds through a securitisation deal with a large bank.","eventType":"FUNDRAISE"}
+{"id":"c073","source":"ANNOUNCEMENT","text":"Godavari Pharma: shareholders approve an enabling resolution to raise capital.","eventType":"FUNDRAISE"}
+{"id":"c074","source":"NEWS","text":"Nilgiri Tea's promoter infuses fresh equity to fund working capital.","eventType":"FUNDRAISE"}
+{"id":"c075","source":"ANNOUNCEMENT","text":"Satpura Steel: outcome of the debenture committee meeting, NCDs allotted.","eventType":"FUNDRAISE"}
+{"id":"c076","source":"ANNOUNCEMENT","text":"Brahmaputra Logistics: a rating agency reaffirmed the long-term rating with a stable outlook.","eventType":"CREDIT_RATING"}
+{"id":"c077","source":"NEWS","text":"Tapti Chemicals' debt rating is cut by one notch on weak cash flows.","eventType":"CREDIT_RATING"}
+{"id":"c078","source":"ANNOUNCEMENT","text":"Chambal Agro: credit rating upgraded for bank facilities.","eventType":"CREDIT_RATING"}
+{"id":"c079","source":"NEWS","text":"A rating agency places Kosi Infra on watch with negative implications.","eventType":"CREDIT_RATING"}
+{"id":"c080","source":"ANNOUNCEMENT","text":"Sindhu Software: rating assigned to its proposed commercial paper programme.","eventType":"CREDIT_RATING","notes":"Overlap with FUNDRAISE (the paper is a fundraise). Labelled by the announced fact: a rating."}
+{"id":"c081","source":"NEWS","text":"Pench Hospitality's outlook revised to positive from stable by a rating agency.","eventType":"CREDIT_RATING"}
+{"id":"c082","source":"ANNOUNCEMENT","text":"Bhadra Bank: rating agency withdraws the rating on redeemed bonds at the bank's request.","eventType":"CREDIT_RATING"}
+{"id":"c083","source":"NEWS","text":"Thar Solar downgraded to default grade after missing a bond payment.","eventType":"CREDIT_RATING","notes":"A payment default is the bigger story; there is no DEFAULT type. Labelled by the rating action."}
+{"id":"c084","source":"ANNOUNCEMENT","text":"Kaziranga Foods: intimation of credit rating for long-term loans.","eventType":"CREDIT_RATING"}
+{"id":"c085","source":"NEWS","text":"Kaveri Polymers' rating moved to 'issuer not cooperating' status.","eventType":"CREDIT_RATING"}
+{"id":"c086","source":"ANNOUNCEMENT","text":"Western Ghats Electric: revision in credit rating of the fixed deposit programme.","eventType":"CREDIT_RATING"}
+{"id":"c087","source":"NEWS","text":"Sahyadri Cement upgraded by two notches after deleveraging.","eventType":"CREDIT_RATING"}
+{"id":"c088","source":"ANNOUNCEMENT","text":"Narmada Textiles: rating agency reaffirms short-term rating.","eventType":"CREDIT_RATING"}
+{"id":"c089","source":"NEWS","text":"Vindhya Power's bonds get an outlook change to negative on rising receivables.","eventType":"CREDIT_RATING"}
+{"id":"c090","source":"ANNOUNCEMENT","text":"Deccan Auto Parts: credit rating action on enhanced bank limits.","eventType":"CREDIT_RATING"}
+{"id":"c091","source":"ANNOUNCEMENT","text":"Konkan Shipping: disclosure under insider trading regulations, director acquired shares in the open market.","eventType":"INSIDER_TRADE"}
+{"id":"c092","source":"NEWS","text":"Malabar Spices promoter sells a small stake through the open market.","eventType":"INSIDER_TRADE","notes":"Promoter sale. Could be filed under takeover rules too; the taxonomy has no separate PROMOTER_STAKE type."}
+{"id":"c093","source":"ANNOUNCEMENT","text":"Aravalli Mining: designated person disposed of shares, form C received.","eventType":"INSIDER_TRADE"}
+{"id":"c094","source":"NEWS","text":"Ganga Finance's CEO buys shares worth a modest sum after the results.","eventType":"INSIDER_TRADE"}
+{"id":"c095","source":"ANNOUNCEMENT","text":"Godavari Pharma: promoter group entity acquired shares, disclosure under takeover regulations.","eventType":"INSIDER_TRADE","notes":"Takeover-code disclosure, not insider-trading code. Same type by our rule; flag if it should split."}
+{"id":"c096","source":"NEWS","text":"Nilgiri Tea promoters raise their holding by buying from the market.","eventType":"INSIDER_TRADE"}
+{"id":"c097","source":"ANNOUNCEMENT","text":"Satpura Steel: disclosure of sale of shares by a whole-time director's relative.","eventType":"INSIDER_TRADE"}
+{"id":"c098","source":"NEWS","text":"Brahmaputra Logistics' founder offloads part of his stake through a block deal.","eventType":"INSIDER_TRADE"}
+{"id":"c099","source":"ANNOUNCEMENT","text":"Tapti Chemicals: trading window closure for designated persons until results.","eventType":"OTHER","notes":"Looks like insider trading but is routine compliance with no trade. A common false positive for INSIDER_TRADE."}
+{"id":"c100","source":"NEWS","text":"Chambal Agro's independent director bought shares two days before a merger announcement.","eventType":"INSIDER_TRADE","notes":"Mentions a merger, but the event is the director's trade."}
+{"id":"c101","source":"ANNOUNCEMENT","text":"Kosi Infra: promoter transferred shares to a family trust as an inter-se transfer.","eventType":"INSIDER_TRADE","notes":"No market sale. Judgement call; could be OTHER."}
+{"id":"c102","source":"NEWS","text":"Sindhu Software's chief financial officer sells shares received under the employee stock option plan.","eventType":"INSIDER_TRADE"}
+{"id":"c103","source":"ANNOUNCEMENT","text":"Pench Hospitality: continual disclosure, promoter purchased shares.","eventType":"INSIDER_TRADE"}
+{"id":"c104","source":"NEWS","text":"Bhadra Bank's promoter trims his holding to meet the regulator's ownership limit.","eventType":"INSIDER_TRADE","notes":"A regulatory reason drives the sale; the event is still a promoter sale, not REGULATORY_ACTION."}
+{"id":"c105","source":"ANNOUNCEMENT","text":"Thar Solar: disclosure by a key managerial person on acquisition of shares.","eventType":"INSIDER_TRADE"}
+{"id":"c106","source":"NEWS","text":"The market regulator fines Kaziranga Foods for late disclosure of related-party deals.","eventType":"REGULATORY_ACTION"}
+{"id":"c107","source":"ANNOUNCEMENT","text":"Western Ghats Electric: receipt of a show-cause notice from the stock exchange.","eventType":"REGULATORY_ACTION"}
+{"id":"c108","source":"NEWS","text":"Godavari Pharma receives a warning letter from the US drug regulator for its main plant.","eventType":"REGULATORY_ACTION"}
+{"id":"c109","source":"NEWS","text":"The central bank bars Bhadra Bank from issuing new credit cards.","eventType":"REGULATORY_ACTION"}
+{"id":"c110","source":"ANNOUNCEMENT","text":"Kaveri Polymers: penalty levied by the stock exchanges for non-compliance with board composition rules.","eventType":"REGULATORY_ACTION"}
+{"id":"c111","source":"NEWS","text":"The competition regulator raids the offices of Sahyadri Cement and peers.","eventType":"REGULATORY_ACTION"}
+{"id":"c112","source":"NEWS","text":"Narmada Textiles gets environmental clearance for its effluent plant.","eventType":"REGULATORY_ACTION","notes":"Positive regulatory decision. The name REGULATORY_ACTION reads negative; decide whether approvals belong here or in OTHER. Overlaps CAPACITY_EXPANSION when the clearance unlocks a plant."}
+{"id":"c113","source":"ANNOUNCEMENT","text":"Vindhya Power: order received from the electricity regulatory commission on the tariff petition.","eventType":"REGULATORY_ACTION","notes":"A tariff order is a regulatory decision, neither a penalty nor litigation."}
+{"id":"c114","source":"NEWS","text":"Deccan Auto Parts' plant is shut by the state pollution board.","eventType":"REGULATORY_ACTION"}
+{"id":"c115","source":"NEWS","text":"Godavari Pharma's plant clears a US FDA inspection with no observations.","eventType":"REGULATORY_ACTION"}
+{"id":"c116","source":"ANNOUNCEMENT","text":"Konkan Shipping: settlement order passed by the market regulator.","eventType":"REGULATORY_ACTION"}
+{"id":"c117","source":"NEWS","text":"Malabar Spices' export consignment is rejected by a foreign food regulator.","eventType":"REGULATORY_ACTION"}
+{"id":"c118","source":"ANNOUNCEMENT","text":"Aravalli Mining: the mining lease was suspended by the state government.","eventType":"REGULATORY_ACTION"}
+{"id":"c119","source":"NEWS","text":"Ganga Finance placed under the central bank's prompt corrective action framework.","eventType":"REGULATORY_ACTION"}
+{"id":"c120","source":"ANNOUNCEMENT","text":"Sindhu Software: receipt of an income tax demand order; the company will appeal.","eventType":"REGULATORY_ACTION","notes":"Tax demands are very common in filings. REGULATORY_ACTION or LITIGATION? Labelled here as REGULATORY_ACTION (an authority's order); once appealed it becomes LITIGATION. Overlap to resolve."}
+{"id":"c121","source":"ANNOUNCEMENT","text":"Nilgiri Tea: board approves a bonus issue of one share for every two held.","eventType":"BONUS_SPLIT"}
+{"id":"c122","source":"NEWS","text":"Satpura Steel to split its shares to improve liquidity.","eventType":"BONUS_SPLIT"}
+{"id":"c123","source":"ANNOUNCEMENT","text":"Brahmaputra Logistics: record date for sub-division of face value.","eventType":"BONUS_SPLIT"}
+{"id":"c124","source":"ANNOUNCEMENT","text":"Tapti Chemicals: board approves a buyback through the tender offer route.","eventType":"BUYBACK"}
+{"id":"c125","source":"NEWS","text":"Chambal Agro's open-market buyback closes early after reaching its maximum size.","eventType":"BUYBACK"}
+{"id":"c126","source":"ANNOUNCEMENT","text":"Kosi Infra: public announcement for buyback of equity shares.","eventType":"BUYBACK"}
+{"id":"c127","source":"NEWS","text":"Sindhu Software agrees to acquire a US analytics firm.","eventType":"M_AND_A"}
+{"id":"c128","source":"ANNOUNCEMENT","text":"Pench Hospitality: scheme of arrangement for demerger of the resorts business approved by the board.","eventType":"M_AND_A","notes":"Demerger is a restructuring, not a merger. No RESTRUCTURING type; M_AND_A is the closest."}
+{"id":"c129","source":"NEWS","text":"Bhadra Bank and a smaller lender agree to merge, pending approvals.","eventType":"M_AND_A"}
+{"id":"c130","source":"ANNOUNCEMENT","text":"Thar Solar: commissioning of an additional block of its solar park.","eventType":"CAPACITY_EXPANSION"}
+{"id":"c131","source":"NEWS","text":"Kaziranga Foods plans a new packaged foods plant in the east.","eventType":"CAPACITY_EXPANSION"}
+{"id":"c132","source":"NEWS","text":"Western Ghats Electric doubles its transformer capacity with a brownfield expansion.","eventType":"CAPACITY_EXPANSION"}
+{"id":"c133","source":"ANNOUNCEMENT","text":"Kaveri Polymers: disclosure of creation of pledge on promoter shares in favour of a lender.","eventType":"PLEDGE_CHANGE"}
+{"id":"c134","source":"NEWS","text":"Sahyadri Cement's promoters release pledged shares after repaying loans.","eventType":"PLEDGE_CHANGE"}
+{"id":"c135","source":"ANNOUNCEMENT","text":"Narmada Textiles: invocation of pledge on promoter shares by a lender.","eventType":"PLEDGE_CHANGE","notes":"An invoked pledge is also a promoter disposal. Overlap with INSIDER_TRADE."}
+{"id":"c136","source":"NEWS","text":"A supplier files an insolvency petition against Vindhya Power over unpaid dues.","eventType":"LITIGATION"}
+{"id":"c137","source":"ANNOUNCEMENT","text":"Deccan Auto Parts: the High Court dismissed the patent suit filed against the company.","eventType":"LITIGATION"}
+{"id":"c138","source":"NEWS","text":"Konkan Shipping appeals the regulator's penalty at the appellate tribunal.","eventType":"LITIGATION","notes":"Follows a REGULATORY_ACTION. The appeal is the event, so LITIGATION. Overlap with REGULATORY_ACTION."}
+{"id":"c139","source":"NEWS","text":"Malabar Spices raises its revenue growth guidance for the year.","eventType":"GUIDANCE"}
+{"id":"c140","source":"ANNOUNCEMENT","text":"Aravalli Mining: production guidance for the coming year shared at the analyst meet.","eventType":"GUIDANCE"}
+{"id":"c141","source":"NEWS","text":"Ganga Finance withdraws its loan growth outlook citing uncertainty.","eventType":"GUIDANCE"}
+{"id":"c142","source":"NEWS","text":"India's consumer price inflation eases for the second month in a row.","eventType":"MACRO_RELEASE","notes":"No instrument. Events with zero instruments are allowed for macro."}
+{"id":"c143","source":"NEWS","text":"The central bank holds its policy rate and keeps a neutral stance.","eventType":"MACRO_RELEASE"}
+{"id":"c144","source":"NEWS","text":"Industrial output growth slows in the latest monthly data.","eventType":"MACRO_RELEASE"}
+{"id":"c145","source":"NEWS","text":"Cement makers raise prices across southern states.","eventType":"SECTOR_NEWS"}
+{"id":"c146","source":"NEWS","text":"The government extends a production incentive scheme to specialty chemicals.","eventType":"SECTOR_NEWS","notes":"Policy aimed at one sector. MACRO_RELEASE or SECTOR_NEWS? Labelled SECTOR_NEWS because it is not a statistical release."}
+{"id":"c147","source":"NEWS","text":"Monthly passenger vehicle sales rise across the industry.","eventType":"SECTOR_NEWS","notes":"Industry data release; overlaps MACRO_RELEASE."}
+{"id":"c148","source":"ANNOUNCEMENT","text":"Godavari Pharma: intimation of schedule of an analyst and investor meet.","eventType":"OTHER"}
+{"id":"c149","source":"NEWS","text":"A fire breaks out at Nilgiri Tea's processing unit; no injuries reported.","eventType":"OTHER","notes":"Operational disruption has no type. Common in practice; consider adding one."}
+{"id":"c150","source":"NEWS","text":"Satpura Steel's managing director pledges to buy more shares and then buys a small lot the next day.","eventType":"INSIDER_TRADE","notes":"The word 'pledges' here means 'promises', not a share pledge. A keyword rule for PLEDGE_CHANGE would misfire."}
