@@ -64,6 +64,42 @@ public class JobRunRepository {
         == 1;
   }
 
+  /**
+   * Extends a lease this owner still holds. Returns false if the lease was lost or already
+   * released, so a heartbeat that fires after {@link #unlock} cannot take the lease back.
+   */
+  public boolean renew(String job, String owner, Instant now, Duration lease) {
+    return jdbc.sql(
+                """
+                update job_lock set locked_until = :until
+                where job_name = :job and locked_by = :owner and locked_until > :now
+                """)
+            .param("until", Timestamp.from(now.plus(lease)))
+            .param("job", job)
+            .param("owner", owner)
+            .param("now", Timestamp.from(now))
+            .update()
+        == 1;
+  }
+
+  /**
+   * Closes runs of {@code job} still marked RUNNING as FAILED. Call only while holding the job's
+   * lease: then no live process is running the job, so such rows belong to a process that stopped
+   * (killed, crashed, restarted) before it could record an outcome. Returns how many were closed.
+   */
+  public int closeAbandoned(String job, Instant now) {
+    return jdbc.sql(
+            """
+            update job_run set status = 'FAILED', finished_at = :now,
+                   detail = 'abandoned: the process running it stopped before it finished'
+                            || coalesce('. ' || detail, '')
+            where job_name = :job and status = 'RUNNING'
+            """)
+        .param("job", job)
+        .param("now", Timestamp.from(now))
+        .update();
+  }
+
   public void unlock(String job, String owner, Instant now) {
     jdbc.sql("update job_lock set locked_until = :now where job_name = :job and locked_by = :owner")
         .param("now", Timestamp.from(now))

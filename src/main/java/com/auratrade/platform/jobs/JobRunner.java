@@ -9,6 +9,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +20,10 @@ import org.slf4j.LoggerFactory;
  * Runs a {@link ScheduledJob} once (ADR 0017): take the job's lease, ask the job what is still owed
  * since the last completed window, run it, and record the result in job_run. Missed or failed runs
  * heal on the next trigger because the plan is computed from history, not from trigger times.
+ *
+ * <p>While a job runs, a heartbeat renews its lease every third of the lease, so the lease can be
+ * short: a killed process stops renewing, and the first trigger after expiry takes over and closes
+ * the run that process left RUNNING as FAILED (abandoned).
  *
  * <p>FAILED and PARTIAL runs, and jobs that cannot plan (for example an uncovered calendar year),
  * are reported on the JobAlerts logger, which a real channel can replace later.
@@ -39,6 +47,12 @@ public class JobRunner {
   private final Clock clock;
   private final Duration lease;
   private final String owner = "auratrade-" + UUID.randomUUID();
+  private final ScheduledExecutorService heartbeat =
+      Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "job-lease-heartbeat");
+        t.setDaemon(true);
+        return t;
+      });
 
   public JobRunner(JobRunRepository runs, Clock clock, Duration lease) {
     this.runs = runs;
@@ -51,7 +65,18 @@ public class JobRunner {
       log.info("{} is already running elsewhere; {} trigger skipped", job.name(), trigger);
       return Result.LOCKED;
     }
+    long period = Math.max(1, lease.toMillis() / 3);
+    ScheduledFuture<?> renewal =
+        heartbeat.scheduleAtFixedRate(
+            () -> renew(job.name()), period, period, TimeUnit.MILLISECONDS);
     try {
+      int abandoned = runs.closeAbandoned(job.name(), clock.instant());
+      if (abandoned > 0) {
+        alerts.warn(
+            "{}: closed {} run(s) left RUNNING by a stopped process as FAILED",
+            job.name(),
+            abandoned);
+      }
       Optional<JobWindow> window;
       try {
         window = job.plan(runs.lastCompletedWindowEnd(job.name()));
@@ -65,7 +90,19 @@ public class JobRunner {
       }
       return execute(job, trigger, window.get());
     } finally {
+      renewal.cancel(false);
       runs.unlock(job.name(), owner, clock.instant());
+    }
+  }
+
+  private void renew(String job) {
+    try {
+      if (!runs.renew(job, owner, clock.instant(), lease)) {
+        alerts.warn("{}: lease lost while running; another trigger may start it", job);
+      }
+    } catch (RuntimeException e) {
+      // A failed heartbeat must not end the schedule: the next one tries again.
+      log.warn("{}: could not renew the lease: {}", job, e.getMessage());
     }
   }
 
@@ -94,7 +131,7 @@ public class JobRunner {
       }
       return Result.RAN;
     } catch (RuntimeException e) {
-      runs.finish(id, Status.FAILED, 0, 0, clip(e.toString()), clock.instant());
+      runs.finish(id, Status.FAILED, 0, 0, clip(describe(e)), clock.instant());
       alerts.warn("{} {} to {} FAILED: {}", job.name(), w.from(), w.to(), e.getMessage());
       return Result.FAILED;
     }
@@ -102,6 +139,12 @@ public class JobRunner {
 
   public java.util.List<JobRun> recent(int limit) {
     return runs.recent(limit);
+  }
+
+  /** "IllegalStateException: message": the package name means nothing to the person reading it. */
+  static String describe(Throwable e) {
+    String type = e.getClass().getSimpleName();
+    return e.getMessage() == null ? type : type + ": " + e.getMessage();
   }
 
   private static String note(JobWindow w) {
