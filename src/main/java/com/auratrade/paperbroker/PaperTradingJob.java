@@ -59,7 +59,8 @@ public class PaperTradingJob implements ScheduledJob {
         ok++;
         detail.append(
             String.format(
-                "%s #%d: %d filled, %d unfilled, %d expired, %d exits and %d entries proposed%s. ",
+                "%s #%d: %d filled, %d unfilled, %d expired, %d exits and %d entries proposed,"
+                    + " %d possible corporate actions to review%s. ",
                 d,
                 r.accountId(),
                 r.filled(),
@@ -67,6 +68,7 @@ public class PaperTradingJob implements ScheduledJob {
                 r.expired(),
                 r.exitsProposed(),
                 r.entriesProposed(),
+                r.reviewsOpened(),
                 r.note() == null ? "" : " (" + r.note() + ")"));
       }
     }
