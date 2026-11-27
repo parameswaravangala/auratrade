@@ -11,6 +11,7 @@ import { JobTimeline } from "./JobTimeline";
 import { Narrative } from "./Narrative";
 import { PipelineMap } from "./PipelineMap";
 import { ResolverPanel } from "./ResolverPanel";
+import { TodayStrip } from "./TodayStrip";
 import { Universe } from "./Universe";
 
 const route = getRouteApi("/");
@@ -25,6 +26,8 @@ export function CommandCenter() {
 
   return (
     <div className="grid gap-4 max-xl:grid-cols-1 xl:grid-cols-[1.55fr_1fr_1fr]" data-testid="command-center">
+      <TodayStrip runs={runs.data} runsError={runs.error} now={now} />
+
       <Panel
         title="Data pipeline"
         badge={<span className="tag tag-a">live</span>}
@@ -49,6 +52,7 @@ export function CommandCenter() {
       </Panel>
 
       <Panel
+        id="job-timeline"
         title="Job timeline · last 24 h (IST)"
         aside={<RunButtons />}
         className="xl:col-span-2"
