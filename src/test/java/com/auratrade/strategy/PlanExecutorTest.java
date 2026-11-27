@@ -218,6 +218,33 @@ class PlanExecutorTest {
   }
 
   @Test
+  void atrTrailingUsesTheHighestCloseMinusMultipleTimesAtr() {
+    // ATR(2), multiple 1, active from 0 profit. Fill day 1 at 100. Day 2 (after close 110):
+    // true ranges over days 1-2 are 2 and 11, so ATR = 6.5. Highest close since entry 110, so the
+    // stop rises to 110 - 6.5 = 103.5 for day 3. Day 3 trades down to 103: stop at 103.5.
+    // R = (103.5 - 100) / 5 = 0.7.
+    List<Bar> bars =
+        List.of(
+            bar(0, "100", "101", "99", "100"),
+            bar(1, "100", "101", "99", "100"),
+            bar(2, "101", "111", "101", "110"),
+            bar(3, "104", "105", "103", "104"));
+    PlanExecutor.Result r =
+        PlanExecutor.execute(
+            plan(
+                List.of(),
+                new TrailingRule.Atr(2, BigDecimal.ONE, BigDecimal.ZERO),
+                new Invalidation.None(),
+                10),
+            bars,
+            0);
+    assertThat(r.exits()).hasSize(1);
+    assertThat(r.exits().get(0).reason()).isEqualTo(ExitReason.STOP);
+    assertThat(r.exits().get(0).price()).isEqualByComparingTo("103.5");
+    assertR(r, "0.7");
+  }
+
+  @Test
   void stillHeldAtTheLastBarIsOpen() {
     List<Bar> bars = List.of(bar(0, "100", "101", "99", "100"), bar(1, "100", "101", "99", "100"));
     PlanExecutor.Result r = PlanExecutor.execute(ladder(), bars, 0);
