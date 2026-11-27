@@ -1,7 +1,7 @@
 # Compliance assessment (preliminary)
 
 - Owner: Compliance Specialist / Legal Research. Reviewers: CISO, Data Privacy, Product Manager. Approver: founder, **after qualified Indian securities and privacy counsel reviews it**.
-- **This is not legal advice.** Sources are mostly secondary commentary (broker blogs, law-firm notes) found 2026-11-27. Every item marked "verify" must be checked against the SEBI, exchange or MeitY text by counsel before any external user is onboarded.
+- **This is not legal advice.** The claims below were checked against primary texts in [compliance-verification-2026-11.md](compliance-verification-2026-11.md) (PR #37, Compliance & Legal Research session, 2026-11-27). That note holds the sources, clause references and the prioritised **questions for counsel**. Still unverified: the commencement notification for the DPDP Act's sections; the scope of NSE policy §7.4 for broker-sourced data; whether a logged-in SaaS counts as "widely available to the public" under the IA proviso.
 
 ## 1. Capability classes
 
@@ -9,35 +9,44 @@ Every product capability is tagged with one class. The class decides who may see
 
 | Class | Meaning | Examples | Who may use it |
 |---|---|---|---|
-| **TOOL** | user-configured computation over data; no opinion from us | screener with user-chosen rules, backtester, indicator charts, paper simulator | founder now; external users after the data-licence gate (G2) |
-| **INFORMATION** | factual reporting with sources; no recommendation | intelligence feed, event summaries, data freshness, daily briefing facts section | as TOOL |
-| **INTERPRETATION** | AI-generated context about securities | MIA `interpretation`, research Q&A | founder only until the RA gate (G1) |
-| **RECOMMENDATION** | buy/sell/hold, targets, "opportunities", model portfolios | brief's "trading opportunities", pre-built screen shortlists marketed as picks | **blocked** externally unless AuraTrade or a partner is SEBI-registered (Research Analyst / Investment Adviser) |
-| **EXECUTION** | orders to a broker | live trading | **blocked** (brief, ADR 0005); also the retail algo framework |
+| **TOOL** | user-configured computation over data; no opinion from us | screener with user-chosen rules, indicator charts, paper simulator | founder now; external users after G2 and counsel (neither the RA nor the IA Regulations contain a tool exclusion) |
+| **INFORMATION** | factual reporting with sources; no recommendation | intelligence feed, event summaries, data freshness, briefing facts section | as TOOL. The facts section likely falls within the RA exclusions for market trends and statistical summaries; verify with counsel |
+| **INTERPRETATION** | AI-generated context about securities, **and any published backtest or performance figure** | MIA `interpretation`, research Q&A, published strategy CAGR, equity curves, "beats Nifty" | founder only until G1. A published backtest may be an implied "claim of returns or performance" (Intermediaries reg 16A(1)(ii)) |
+| **RECOMMENDATION** | buy/sell/hold, targets, "opportunities", model portfolios, black-box strategies offered to others | brief's "trading opportunities", pre-built shortlists marketed as picks | **blocked** externally unless AuraTrade or a partner is SEBI-registered (RA / IA) |
+| **EXECUTION** | orders to a broker | live trading | **blocked** (brief, ADR 0005); gate G4 |
 
 ## 2. SEBI
 
-| Topic | What we found | Implication | Verify |
-|---|---|---|---|
-| Research Analyst Regulations, 2014 (amended) | Commentary says claims about a security's performance or returns may only come from a registered RA or another permitted intermediary, and RA research must carry a rationale, risk disclosure and credentials ([Univest](https://univest.in/blogs/sebi-finfluencer-rules-explained), [AlgoTest](https://algotest.in/blog/research-analysts-demystified-what-your-finfluencer-needs-to-do-now-sebi/)) | INTERPRETATION and RECOMMENDATION for third parties may be "research". Gate G1 | RA Regulations text; whether automated or AI-generated analysis counts as research; whether user-configured screens are tools |
-| Association with unregistered persons (Intermediaries Regs, reg 16A, from 2024-08-29) | Registered intermediaries may not associate with persons giving unregistered advice or return claims. An education carve-out reportedly requires price data at least 3 months old ([Moneylife](https://mas360.moneylife.in/article/sebi-tightens-regulations-on-finfluencers-new-guidelines-for-educational-content-and-stock-market-advice/4724.html), [Business Standard](https://www.business-standard.com/amp/finance/news/sebi-announces-norms-to-restrict-finance-influencer-s-recommendations-124062701002_1.html)) | Broker partnerships (for example Upstox or Zerodha integrations, data deals) may require us to show we give no unregistered advice | text of reg 16A; the 3-month rule's exact scope |
-| Investment Adviser Regulations, 2013 | not researched in this pass | personalised portfolio analysis or allocation suggestions to users may be investment advice | full assessment before the Portfolio Analysis features |
-| Retail algorithmic trading framework | SEBI circular "Safer participation of retail investors in Algorithmic trading" (4 Feb 2025). Implementation extended, with milestones toward Jan 5, 2026 and full compliance reported for April 2026; Algo IDs tag orders; there is reportedly a threshold of 10 orders/s for a generic ID ([SEBI extension PDF](https://www.sebi.gov.in/sebi_data/attachdocs/sep-2025/1759232056254.pdf), [Zerodha explainer](https://zerodha.com/z-connect/business-updates/explaining-the-latest-sebi-algo-trading-regulations), [Business Standard](https://www.business-standard.com/markets/news/sebi-extends-retail-algo-trading-framework-rollout-to-2026-125093000956_1.html)) | Any automated order placement (even founder-only via API) must go through the broker's registered-algo path. Offering strategies to others makes us an algo provider needing exchange empanelment through a broker | current enforcement status; personal-use rules; whether "human approves every order" changes the classification |
+| Topic | What the primary texts say (see the verification note for clauses) | Implication |
+|---|---|---|
+| Research Analyst Regulations, 2014 (amended 16 Dec 2024; consolidated 10 Oct 2026) | Covers "any written or electronic communication" of research. Requires RAs to disclose use of AI (reg 19(vii)) and remain responsible for AI output (reg 24(7)). Report contents: regs 19, 20, 25. **No exclusion for AI or tools.** The technical-analysis exclusion covers a sector or index only | AI interpretation of a specific security for anyone other than the founder may be research. Gate G1 |
+| Intermediaries Regulations, reg 16A and regs 16D-16E | Registered intermediaries may not associate with persons giving unregistered advice or making return/performance claims (16A(1)(ii)). An API integration is an "association" (Explanation 2(c)), and 16A(2) makes the broker responsible for policing us. Return claims are allowed only for IAs, RAs and empanelled algo providers, using PaRRVA-verified metrics (16D-16E). Education exclusion: reg 16A itself names no lag. The FAQ lag is **30 days for sharing and usage, from 1 Jul 2026** (SEBI circular of 8 May 2026), replacing the earlier three months | Our Upstox link makes our external conduct Upstox's concern. Published backtests are high risk. Counsel Q1 and Q2 |
+| Investment Adviser Regulations, 2013 | Definition in reg 2(1)(l), with provisos for mass media and trading calls; reg 3(1); reg 15(14) on AI. **No exclusion for general-purpose tools** | Portfolio analysis or allocation features for users may be investment advice. Counsel Q7 |
+| Retail algorithmic trading framework | In force for all brokers from **1 Apr 2026** (SEBI circular 30 Sep 2025, para 8). NSE/INVG/67858 sets 10 orders/s per exchange per segment. Below that: no exchange registration, but a generic algo ID. Above it: register with each exchange. Founder algos below 10 OPS still need broker API onboarding: static IP, OAuth/2FA, daily logout, algo tagging, no market orders. Black-box strategies offered to others need RA registration (SEBI circular 4 Feb 2025, §V). Paper trading sends nothing to the exchange, so the framework is not triggered | Any live step, even founder-only and human-approved per order, is an algo order on the text (NSE FAQ Q8). Gate G4 |
 
 ## 3. Market data licensing
 
-NSE's Data Usage and Data Sharing Policy states NSE is the sole owner of its market data and licenses use, distribution and redistribution through NSE Data; its non-display policy also covers derived data ([policy](https://nsearchives.nseindia.com/web/sites/default/files/inline-files/NSE_Data_Sharing%26Usage_Policy.pdf), [non-display](https://nsearchives.nseindia.com/web/sites/default/files/inline-files/Non_Display_Policy.pdf)). **Consequence: showing NSE prices, or values derived from them, to SaaS customers almost certainly needs a licence from NSE Data or a licensed vendor whose terms allow it.** Gate G2. Upstox data rights for third-party display are unverified (risk R-01).
+- **Ownership:** NSE's Data Usage and Data Sharing Policy says NSE is the sole owner of its market data and licenses use and redistribution through NSE Data. Its non-display policy covers derived data. Showing NSE prices or derived values to SaaS customers needs a licence (gate G2).
+- **Simulation (new):** NSE policy §7.4 bars market data for "virtual trading or simulation" platforms. This is a risk to *external* paper trading (R-23). Whether it also reaches founder-only use of broker-supplied data is counsel Q4.
+- **Upstox:** the R2-01 terms review (PR #36) found no published API data licence, and ai.txt bars resale and republishing. See R-01.
 
 ## 4. Data protection (DPDP Act 2023 and DPDP Rules 2025)
 
-Rules were notified about 13 to 14 Nov 2025 with phased commencement: Board provisions immediately; consent managers about Nov 2026; the main fiduciary obligations (notice, consent, security safeguards, breach notice, retention, children's data) about **May 2027** ([PIB doc](https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/nov/doc20251117695301.pdf), [SCC Online](https://www.scconline.com/blog/post/2025/12/26/digital-personal-data-protection-rules-2025-key-highlights/), [YourStory](https://yourstory.com/2025/11/digital-personal-data-protection-dpdp-rules-2025-rollout-over-18-months)). The Phase 4 SaaS launch falls after May 2027, so we must be compliant at launch: consent notice, purpose limitation, erasure, a breach process (notice to the Board and to users), and processor contracts (AWS, LLM provider). GDPR applies only if we target EU residents (not planned).
+- **Rules:** G.S.R. 846(E), notified around 13 to 14 Nov 2025 (exact date to confirm). Commencement per rules 1(2) to 1(4): Board provisions immediately; consent-manager provisions **already in force**; the main fiduciary obligations from about **May 2027**. The Act's section-commencement notification has not been read ("verify").
+- **Obligations to design for:**
+  - minimum one-year retention of personal data and logs (rules 6(1)(e), 8(3));
+  - a detailed breach report to the Board within 72 hours (rule 7(2)(b));
+  - a published privacy contact (rule 9);
+  - a 90-day grievance response (rule 14(3));
+  - penalties up to INR 250 crore (Act, Schedule).
+- **Tension:** the one-year log retention against erasure requests (counsel Q8). ADR 0037 keeps personal data out of audit payloads.
 
 ## 5. Gates
 
 | Gate | Unlocks | Requires |
 |---|---|---|
-| G0 | Founder-only use (now) | personal-use terms of each source respected |
-| G1 | INTERPRETATION / RECOMMENDATION for anyone but the founder | counsel opinion; either SEBI RA registration (or partner RA) or a product redesign to TOOL/INFORMATION only |
-| G2 | Any external user seeing market data | licensed data source with redistribution rights; contract reviewed |
-| G3 | External users at all | DPDP notice/consent, privacy policy, terms of use, disclaimers, grievance contact |
-| G4 | Any live order | founder authorisation, broker algo registration, SEBI framework compliance, security review, step-up auth |
+| G0 | Founder-only use (now) | personal-use terms of each source respected; no client and no consideration |
+| G1 | INTERPRETATION / RECOMMENDATION (including published backtests) for anyone but the founder | counsel opinion; SEBI RA registration (or a partner RA), or a redesign to TOOL / INFORMATION only |
+| G2 | Any external user seeing market data, **including external paper trading** | licensed data source with display and derived-data rights; NSE §7.4 simulation restriction cleared; contract reviewed |
+| G3 | External users at all | DPDP notice and consent, privacy contact, grievance process (90 days), breach process (72 h), terms of use, disclaimers |
+| G4 | Any live order | founder authorisation; broker API onboarding under the algo framework (static IP, OAuth/2FA, daily logout, algo tagging, no market orders; exchange registration above 10 OPS); security review; decision-bound step-up |
