@@ -3,8 +3,9 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
-// The Spring Boot backend (dev profile). Override with AURATRADE_API, e.g. http://localhost:8081.
-const backend = process.env.AURATRADE_API ?? "http://localhost:8080";
+// The Spring Boot backend (dev profile). Override with AURATRADE_API, e.g. http://127.0.0.1:8081.
+// 127.0.0.1, not localhost: dev binds the backend to IPv4 loopback only, and Node may try ::1 first.
+const backend = process.env.AURATRADE_API ?? "http://127.0.0.1:8080";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
