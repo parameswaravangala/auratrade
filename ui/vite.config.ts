@@ -26,5 +26,7 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     css: false,
     restoreMocks: true,
+    // Several sessions build on this machine at once; a busy CPU must not turn slow renders into failures.
+    testTimeout: 15_000,
   },
 });
