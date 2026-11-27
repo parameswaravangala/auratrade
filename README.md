@@ -25,6 +25,14 @@ curl localhost:8080/actuator/health
 
 Optional local LLM for later sprints: `docker compose --profile local-llm up -d`.
 
+### Local-only request guard (on in every profile, including prod)
+The app has no authentication yet (backlog B-031), so `platform.web.LocalRequestGuard` serves only this machine:
+- **Host:** a request whose `Host` header is not `localhost`, `127.0.0.1` or `[::1]` (any port) gets 403 problem+json.
+- **Origin:** so does a browser request whose `Origin` is not in `auratrade.security.local-guard.allowed-origins`. The default list is `localhost` and `127.0.0.1` on ports 5173 and 5174 (the Vite UI) and 8080.
+- **Dev profile:** the server also listens on 127.0.0.1 only.
+- **Prod:** this means a `prod` profile reached through any real hostname answers 403 to everything. That is deliberate and fails closed. Do **not** set `auratrade.security.local-guard.enabled=false` to "fix" prod. Turn the guard off, or allow-list the real host, only once B-031 authentication is in place.
+- **Other ports:** to run the UI on another port, add its origin to the property, for example in `.env`.
+
 ## Everyday commands
 | Task | Command |
 |---|---|

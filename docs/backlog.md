@@ -32,3 +32,45 @@ Items parked outside the current sprint. Keep each one small and say what unbloc
 | ~~B-029~~ | Done 2026-11-27 (ADR 0025): snapshot bars name their session, so the clock no longer decides the day. Was: An EOD run that crosses midnight IST loses the session's bar for every share it reaches after midnight: the intraday endpoint then serves the new day, and the historical endpoint did not yet have the old one (seen 2026-11-26: a run started 22:56 IST loaded 1,691 of 2,786 shares, A to M). The coverage gate (now 0.9) makes such a run fail closed. Fix properly with B-028 (shorter run), or by having the job tell the provider which session it wants so an after-midnight run waits for the historical endpoint instead | Startup catch-up late in the evening hits it | B-028, or find out when Upstox publishes the previous day to the historical endpoint (unverified) |
 | B-027 | Alert delivery (ADR 0017 JobAlerts and CalendarAlerts are log lines today): a channel behind an interface (Telegram suggested; email or ntfy as alternatives), alerts for FAILED or PARTIAL job runs, stale data (no fresh EOD candles by a deadline), a provider 401, and the Upstox token expiring (the JWT carries `exp`: 2027-11-26) with 30 days' notice | Nobody sees log-only alerts | Channel choice; parked 2026-11-26 to build features first |
 | B-031 | Authentication and an audit trail for order decisions: today `/api/v1/paper` (approve, reject, bulk decide) exists only in the dev profile and records `decided_by` as free text with `decided_at`, so nothing ties a decision to a person. Needed: real sign-in, the decider taken from the authenticated principal (not the request body), and an append-only audit of every decision and edit (quantity, limit) | The UI plan said "auth and an audit trail before any approve button exists"; the Approval queue now has those buttons (dev only) | Before any non-dev profile serves the paper API, and before any live trading (Phase 2) |
+
+## From the business-user review (2026-11-27)
+
+Details, evidence and trade-offs: `docs/research/2026-11-27-business-user-review.md` (pain points P1 to P20). B-032 to B-039 are left free.
+
+Quick wins from the review, tracked as PRs rather than backlog items: job lease heartbeat and abandoned runs (P2, P4) in PR #31; fund units (ISIN prefix INF) skipped by screens, backtests and paper entries (P10) in PR #32, merged; the pipeline card's rejected count (P3) in PR #33. Backtest results dated before PR #32 include fund units.
+
+| ID | Item | Why | Unblocked by |
+|---|---|---|---|
+| B-040 | "Today" strip on the Command center: paper orders waiting with the time left to 09:15 IST, last EOD session and coverage, failed or abandoned job runs, each linking to its screen | 10 proposals expired unseen is the likeliest way to break go-live criterion (5) (P1) | None (PR #30 merged the paper client) |
+| B-041 | Grounded copilot: Java builds a fact sheet (last session, close, SMA 50/200, RSI, ATR, 52-week range, screens matched, open order or position), passed as data; reply numbers checked against it | Today it gets only the symbol and answers from model memory (P6) | Same validation pattern as B-007 |
+| B-042 | Store shortlists per screen and session after the EOD job (`screen_run`), UI reads them with "computed at" | Shortlists take 14 s to 2 min on every visit (P11) | None |
+| B-043 | `GET /api/v1/marketdata/freshness` (sessions behind, via `TradingCalendar`) and `GET /api/v1/calendar/coverage`; then the Data calendar screen with backfill validation failures | Freshness in calendar days; failed backfill shares invisible (P8, P19) | None |
+| B-044 | Dossier lenses from Java indicators (`/api/v1/instruments/{symbol}/indicators`) and "where this share appears" (shortlists, orders, positions) | Lenses disabled; no link from a share to its signals (P9) | None |
+| B-045 | Approval queue batch summary (total value, total risk, cash after fills, positions used) and order value against 20-session average traded value | Day one put 84% of capital and 10% risk on in one batch without a total (P14, P15) | None (PR #30 merged the paper client) |
+| B-046 | Paper portfolio against Nifty and go-live progress per criterion, with criteria stored as thresholds beside the text | No benchmark line; criteria are prose (P16) | None (PR #30 merged the paper client) |
+| B-047 | Supported recovery: mark a run failed with a reason (dev endpoint), run buttons for every job, runbook "EOD run failed or partial" | Run 20 was fixed by hand in SQL (P18, P20) | None |
+| B-048 | Alias curation: log unresolved names, propose candidates from the fuzzy matcher, confirm in a small UI | HDFC, SBI, L&T, Zomato do not resolve; aliases only via `/dev` POST (P7) | None |
+| B-049 | Playbook lab "use paper account settings" preset; show the account's own backtest beside its forward results | Lab defaults differ from account 1 in four settings (P12) | None (PR #30 merged the paper client) |
+| B-050 | Say when LLM spend is simulated (pretend prices on a local model) | Budget shows dollars although nothing was spent (P5) | None |
+| B-051 | Reconcile account 1's go-live criteria with its backtest: -42.8% drawdown 2019-2026 (-30.3% out of sample) against the -25% criterion. Decided 2026-11-27: re-measure, then fix the strategy. (1) Re-run account 1's exact settings after PR #32. (2) If the drawdown is still deeper than -25%, sweep risk per trade and a portfolio drawdown brake, choosing in-sample and reporting out-of-sample once. (3) Accept settings only with out-of-sample drawdown no deeper than -25% after costs and still ahead of Nifty; otherwise the decision goes back to the owner. (4) Account 1 continues unchanged as a learning run; the owner opens account 2 with the chosen settings. (5) Record it in an ADR amending ADR 0005 | Criteria (3) and (4) cannot both hold if the backtest is right (P13) | Step 1 measures first; steps 2 to 5 only if needed. Account 2 also waits on B-020's paper check |
+| B-052 | Liquidity and gap risk: cap order value at a fraction of average traded value; report gap-through-stop losses separately | 64 of 193 stop exits gapped through the stop; worst trade 21,538 shares near INR 20 (P13, P15) | None |
+
+B-027 (alert delivery) should move up: paper trading now depends on the evening jobs every day, and their failures were found the next morning (P17).
+
+## Priority (Product Owner, 2026-11-27)
+
+The goal for this phase is an honest paper track record, so the daily decision and trustworthy data come first, then trustworthy strategy numbers, then polish.
+
+1. B-040 Today strip
+2. B-043 freshness and coverage API (in parallel with B-040)
+3. B-027 alert delivery: the interface and the alert triggers now; the channel adapter waits on the owner's choice
+4. B-030 snapshot close against historical close (cheap; needs weeks of runs)
+5. B-020, first only a check: does paper trading treat a split or bonus gap as a stop? If so, fix it before account 2 opens
+6. B-051 steps 2 and 5, if the re-measure needs them
+7. B-045 approval queue batch summary
+8. Walk-forward test, then delisted instruments (survivorship bias)
+9. B-052, then B-046
+10. B-041 grounded copilot (until then, label the copilot as not connected to AuraTrade data)
+11. B-047, B-042, B-044, B-049, B-048, B-050, in that order
+
+B-031 is gated, not ranked: it lands before any non-dev profile serves `/api/v1/paper`, and before Phase 2.

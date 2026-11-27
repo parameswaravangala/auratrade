@@ -2,7 +2,7 @@ import clsx from "clsx";
 import type { JobRun, SpendReport } from "@/api/schemas";
 import { formatInt, formatUsd } from "@/lib/format";
 import { istDayMonth, istHm } from "@/lib/time";
-import { health, type Health } from "@/lib/timeline";
+import { health, rejectedRows, type Health } from "@/lib/timeline";
 
 type Props = { latest: Map<string, JobRun>; spend: SpendReport | undefined };
 
@@ -106,7 +106,7 @@ export function PipelineMap({ latest, spend }: Props) {
         x={250}
         y={40}
         title="Instrument master"
-        sub={im ? `${formatInt(im.itemsOk)} ok · ${im.itemsFailed} rejected` : "no runs yet"}
+        sub={im ? `${formatInt(im.itemsOk)} rows · ${formatInt(rejectedRows(im))} rejected` : "no runs yet"}
         h={imH}
       />
       <Node

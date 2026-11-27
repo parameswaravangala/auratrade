@@ -138,8 +138,8 @@ export function useAsk() {
     mutationFn: (prompt: string) =>
       getJson("/dev/llm/ask?agent=ADHOC_CHAT", LlmResult, {
         method: "POST",
-        body: prompt,
-        contentType: "text/plain",
+        body: JSON.stringify({ prompt }),
+        contentType: "application/json",
       }),
   });
 }

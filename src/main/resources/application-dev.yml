@@ -5,6 +5,10 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
+# Loopback only: the dev and paper endpoints have no authentication, so never listen on the LAN.
+server:
+  address: 127.0.0.1
+
 auratrade:
   jobs:
     enabled: true
