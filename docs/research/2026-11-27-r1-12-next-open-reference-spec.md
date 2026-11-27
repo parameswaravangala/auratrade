@@ -14,6 +14,26 @@ system that paper account 1 runs. R1-12 produces the reference numbers for that 
 go-live criteria (proposal F5) and any "close to the backtest" comparison are measured against
 those numbers.
 
+## Headline report (Product Owner frame; replaces the old re-measure R-07)
+
+R1-12 also replaces the old re-measure (R-07). The published 2026-11-26 numbers were computed
+before #32 removed fund units from the shares that screens read, so they are re-measured here.
+The results note must open with this table, stop modes side by side, for account 1's exact
+settings:
+
+| Period | Mode | CAGR | Nifty CAGR | Max drawdown | Trades | STOP exits | STOP_GAP exits | TIME exits |
+|---|---|---|---|---|---|---|---|---|
+| full: 2019-01-01 to T | A (touch) / C (next open) | | | | | | | |
+| in-sample: 2019-01-01 to 2022-12-31 | A / C | | | | | | | |
+| out-of-sample: 2023-01-01 to T | A / C | | | | | | | |
+
+T is the latest session with completed EOD candles at run time. Record T in the note and use the
+same T for every run.
+
+In `NEXT_OPEN` mode, a stop exit is labelled **STOP_GAP** if the open of the flag session was
+already at or below the stop, and **STOP** otherwise. This keeps the counts comparable with
+mode A.
+
 ## 1. What to build
 
 Add two settings to `PortfolioSimulator.Settings`. The defaults keep today's behaviour exactly.
@@ -76,7 +96,7 @@ Each run starts with fresh capital. The periods are the same as the sweep note's
 
 | Run | Mode | Periods |
 |---|---|---|
-| R-A | A | full 2019-01-01 to 2026-11-25; in-sample 2019-01-01 to 2022-12-31; out-of-sample 2023-01-01 to 2026-11-25 |
+| R-A | A | full 2019-01-01 to T; in-sample 2019-01-01 to 2022-12-31; out-of-sample 2023-01-01 to T |
 | R-B | B | same three periods |
 | R-C | C | same three periods (**the reference**) |
 | G-C | C, sweep grid | `/dev/backtest/sweep` in mode C: stop 1.5, 2 or 3 x ATR; hold 20, 60 or 120; regime off or on (18 combinations), split 2023-01-01 |
@@ -87,8 +107,10 @@ results note:
 ```sql
 select count(*), sum(close), max(ingested_at) from candle
 where bar_interval = 'DAY' and source = 'UPSTOX'
-  and ts < timestamptz '2026-11-26 00:00+05:30';
+  and ts <= '<T> 00:00+05:30'::timestamptz;
 ```
+
+Run at a commit that includes #32 (fund units excluded).
 
 ## 4. Outputs per run
 
@@ -111,11 +133,11 @@ where bar_interval = 'DAY' and source = 'UPSTOX'
 
 | # | Check | Pass |
 |---|---|---|
-| AC1 | Defaults unchanged | `/dev/backtest/portfolio` with the published default settings (2 x ATR, 60, no regime, 2019-01-01 to 2026-11-25) gives 762 trades, CAGR 20.9% and maximum drawdown -59.5% (portfolio note). R-A out-of-sample gives CAGR 20.2%, maximum drawdown -30.3% and Sharpe 1.23 (sweep note), each within 0.1. If the data snapshot has changed since 2026-11-26, explain any difference before going on. |
+| AC1 | Defaults unchanged | At the same commit and data snapshot, mode A with default `stopMode` and `stopBasis` gives byte-identical results to the code without the new settings. Also run the published default settings (2 x ATR, 60 sessions, no regime, 2019-01-01 to 2026-11-25) and R-A out of sample to 2026-11-25. Report them next to the published figures: 762 trades, CAGR 20.9%, maximum drawdown -59.5% (portfolio note); CAGR 20.2%, drawdown -30.3%, Sharpe 1.23 (sweep note). Differences are expected from #32 and are the R-07 re-measure. Explain each one by the fund units removed or by data changes, not leave it unexplained. |
 | AC2 | Deterministic | Two identical runs give byte-identical JSON. |
 | AC3 | Unit tests (`PortfolioSimulatorTest`, synthetic candles) | (a) low touches the stop at t: sells at open(t+1) x (1 - slip), reason STOP; (b) open below the stop at t: sells at open(t+1), not open(t); (c) holding limit reached at t: sells at open(t+1), reason TIME; (d) a flagged position is marked at the close until sold; (e) no bar at t+1: sells at the next bar's open; (f) `SIGNAL_CLOSE` stop and size use the signal close; (g) INTRADAY_TOUCH + FILL results are identical to today's tests. |
 | AC4 | Paper replay | Mode C, fed account 1's sessions from 2026-11-26 and its actual decisions (approved, rejected, expired, with any edited quantity or limit), reproduces `paper_order` fills, `paper_position` and `paper_trade` exactly: symbol, dates, quantity, prices to 4 decimals and P&L to the paisa. Until trades exist, compare positions and proposed exits. Ship this as a test or a dev endpoint, so it can run at every review. |
-| AC5 | Results note | `docs/research/<date>-next-open-reference.md` with the reproduce URLs, the snapshot query result and all section 4 outputs. |
+| AC5 | Results note | `docs/research/<date>-next-open-reference.md`, opening with the headline table, then T, the commit, the reproduce URLs, the snapshot query result and all section 4 outputs. |
 
 ## 6. Decision rules (research: what the numbers decide)
 
