@@ -37,3 +37,8 @@ Forward results come from the same rules as the backtests, with real decisions i
 are not intraday orders: a breach is seen at the close and exited at the next open, usually a
 worse price than the backtest assumes. No broker connection exists; moving to live trading needs
 the written criteria to be met and a separate decision (Phase 2).
+
+Known gap (2026-11-27): decisions are not authenticated. `decided_by` is free text from the
+request and there is no separate audit log, which is acceptable only because the API is served
+in the dev profile alone. Authentication and an append-only audit trail (backlog B-031) are
+required before the API is served in any other profile, and before live trading.

@@ -108,16 +108,28 @@ class PaperTradingController {
     return repo.trades(id);
   }
 
-  record Decision(String by, String note) {}
+  /**
+   * @param quantity optional, BUY only: 1 up to the proposed quantity
+   * @param limitPrice optional: most to pay on a BUY, least to accept on a SELL
+   */
+  record Decision(String by, String note, Long quantity, BigDecimal limitPrice) {}
 
   @PostMapping("/orders/{id}/approve")
   PaperRepository.Order approve(@PathVariable long id, @RequestBody Decision d) {
-    return paper.decide(id, true, d.by(), d.note());
+    return paper.decide(id, true, d.by(), d.note(), d.quantity(), d.limitPrice());
   }
 
   @PostMapping("/orders/{id}/reject")
   PaperRepository.Order reject(@PathVariable long id, @RequestBody Decision d) {
-    return paper.decide(id, false, d.by(), d.note());
+    return paper.decide(id, false, d.by(), d.note(), d.quantity(), d.limitPrice());
+  }
+
+  record BulkDecision(List<Long> orderIds, boolean approve, String by, String note) {}
+
+  /** Same decision for several orders, each on its own; always 200 with one outcome per order. */
+  @PostMapping("/orders/decide")
+  List<PaperTradingService.Outcome> decideAll(@RequestBody BulkDecision d) {
+    return paper.decideAll(d.orderIds(), d.approve(), d.by(), d.note());
   }
 
   /** Dev: process one session for one account now, for example to start on the latest data. */

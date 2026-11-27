@@ -48,7 +48,17 @@ public class PaperRepository {
       String decidedBy,
       BigDecimal fillPrice,
       BigDecimal fillCosts,
-      String statusNote) {}
+      String statusNote,
+      BigDecimal referencePrice,
+      Long approvedQuantity,
+      BigDecimal limitPrice,
+      Instant decideBy) {
+
+    /** Shares to trade if approved: the approved quantity, or the proposed one. */
+    public long quantityToTrade() {
+      return approvedQuantity == null ? quantity : approvedQuantity;
+    }
+  }
 
   public record Position(
       long accountId,
@@ -169,13 +179,15 @@ public class PaperRepository {
       BigDecimal stop,
       BigDecimal score,
       String detail,
+      BigDecimal referencePrice,
       Instant now) {
     return jdbc.sql(
             """
             insert into paper_order (account_id, instrument_id, symbol, side, quantity, reason,
-                signal_date, fill_date, stop_price, score, detail, status, created_at)
+                signal_date, fill_date, stop_price, score, detail, status, created_at,
+                reference_price)
             values (:account, :instrument, :symbol, :side, :qty, :reason, :signal, :fill, :stop,
-                :score, :detail, 'PROPOSED', :now)
+                :score, :detail, 'PROPOSED', :now, :reference)
             returning id
             """)
         .param("account", accountId)
@@ -189,6 +201,7 @@ public class PaperRepository {
         .param("stop", stop)
         .param("score", score)
         .param("detail", detail)
+        .param("reference", referencePrice)
         .param("now", Timestamp.from(now))
         .query(Long.class)
         .single();
@@ -197,7 +210,7 @@ public class PaperRepository {
   private static final String ORDER_COLUMNS =
       "id, account_id, instrument_id, symbol, side, quantity, reason, signal_date, fill_date,"
           + " stop_price, score, detail, status, decided_at, decided_by, fill_price, fill_costs,"
-          + " status_note";
+          + " status_note, reference_price, approved_quantity, limit_price";
 
   private static Order order(ResultSet rs, int n) throws SQLException {
     Timestamp decided = rs.getTimestamp(14);
@@ -219,7 +232,21 @@ public class PaperRepository {
         rs.getString(15),
         rs.getBigDecimal(16),
         rs.getBigDecimal(17),
-        rs.getString(18));
+        rs.getString(18),
+        rs.getBigDecimal(19),
+        rs.getObject(20, Long.class),
+        rs.getBigDecimal(21),
+        decideBy(rs.getObject(9, LocalDate.class)));
+  }
+
+  /** Decisions are accepted until 09:15 IST on the fill date (ADR 0024). */
+  static final java.time.LocalTime DECISION_DEADLINE = java.time.LocalTime.of(9, 15);
+
+  static Instant decideBy(LocalDate fillDate) {
+    return fillDate
+        .atTime(DECISION_DEADLINE)
+        .atZone(com.auratrade.platform.time.MarketZones.IST)
+        .toInstant();
   }
 
   public Optional<Order> order(long id) {
@@ -259,12 +286,27 @@ public class PaperRepository {
 
   /** Changes status only if the order is still in {@code expected}; returns whether it did. */
   boolean decide(long id, String expected, String status, Instant at, String by, String note) {
+    return decide(id, expected, status, at, by, note, null, null);
+  }
+
+  /** As above, also recording an approved quantity and a limit price (either may be null). */
+  boolean decide(
+      long id,
+      String expected,
+      String status,
+      Instant at,
+      String by,
+      String note,
+      Long approvedQuantity,
+      BigDecimal limitPrice) {
     return jdbc.sql(
                 """
                 update paper_order set status = :status, decided_at = :at, decided_by = :by,
-                    status_note = :note
+                    status_note = :note, approved_quantity = :qty, limit_price = :limit
                 where id = :id and status = :expected
                 """)
+            .param("qty", approvedQuantity)
+            .param("limit", limitPrice)
             .param("status", status)
             .param("at", at == null ? null : Timestamp.from(at))
             .param("by", by)
