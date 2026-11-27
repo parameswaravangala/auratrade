@@ -22,3 +22,6 @@ Thumbs.db
 
 # Vite caches
 .vite/
+
+# Real exchange and label data: never commit (fixtures are synthetic)
+/data/
