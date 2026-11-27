@@ -61,10 +61,12 @@ class CandleSeriesReaderIT extends PostgresIntegrationTest {
     days(insert("BOND", "EQ", "N0", InstrumentLoaderIT.isin(3), "2026-11-26"), 10);
     days(insert("GONE", "EQ", "EQ", InstrumentLoaderIT.isin(4), "2026-11-20"), 10);
     days(insert("NIFTY", "INDEX", "INDEX", null, "2026-11-26"), 10);
+    // A fund unit (ETF): series EQ like a share, told apart only by its ISIN. Made-up ISIN.
+    days(insert("FUNDX", "EQ", "EQ", "INF000TEST01", "2026-11-26"), 10);
   }
 
   @Test
-  void returnsTheLastNCandlesUpToAsOfForActiveSharesOnly() {
+  void returnsTheLastNCandlesUpToAsOfForActiveCompanySharesOnly() {
     List<CandleSeriesReader.Series> seen = new ArrayList<>();
 
     reader.forEachShare(
