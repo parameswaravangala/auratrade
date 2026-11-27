@@ -117,18 +117,18 @@ No positions and no trades yet. Cash is INR 10,00,000, and equity on 2026-11-26 
 10,00,000. Ten BUY orders were proposed on 2026-11-26 and APPROVED for a fill at the 2026-11-27
 open. They fill when the job processes 2026-11-27 after tonight's EOD run.
 
-| Symbol | Quantity | Reference price (2026-11-26 close) | Stop | Stop distance | Value as % of INR 10 lakh | Largest open gap in the stored bars since 2025-11-12 | Known upcoming ex-date |
-|---|---|---|---|---|---|---|---|
-| NRL | 318 | 176.00 | 144.6136 | 17.8% | 5.6 | -4.6% (2026-09-15) | unverified |
-| CUPID | 228 | 371.10 | 327.3857 | 11.8% | 8.5 | -18.8% (2026-01-05) | unverified |
-| FILATEX | 531 | 110.05 | 91.2314 | 17.1% | 5.8 | -3.9% | unverified |
-| TFCILTD | 789 | 174.94 | 162.2757 | 7.2% | 13.8 | -7.7% | unverified |
-| RATNAVEER | 222 | 405.00 | 360.0643 | 11.1% | 9.0 | -3.3% | unverified |
-| SSWL | 115 | 474.25 | 387.9893 | 18.2% | 5.5 | -3.6% | unverified |
-| RAYMOND | 62 | 1,183.20 | 1,024.0286 | 13.5% | 7.3 | -6.2% | unverified |
-| GCSL | 195 | 850.55 | 799.4964 | 6.0% | 16.6 | -5.0% | unverified |
-| SHALPAINTS | 456 | 108.11 | 86.1864 | 20.3% | 4.9 | -5.0% | unverified |
-| WELSPUNLIV | 244 | 280.35 | 239.5114 | 14.6% | 6.8 | -4.0% | unverified |
+| Symbol | Stop distance below the 2026-11-26 close | Value as % of INR 10 lakh | Largest open gap in the stored bars since 2025-11-12 | Known upcoming ex-date |
+|---|---|---|---|---|
+| NRL | 17.8% | 5.6 | -4.6% (2026-09-15) | unverified |
+| CUPID | 11.8% | 8.5 | -18.8% (2026-01-05) | unverified |
+| FILATEX | 17.1% | 5.8 | -3.9% | unverified |
+| TFCILTD | 7.2% | 13.8 | -7.7% | unverified |
+| RATNAVEER | 11.1% | 9.0 | -3.3% | unverified |
+| SSWL | 18.2% | 5.5 | -3.6% | unverified |
+| RAYMOND | 13.5% | 7.3 | -6.2% | unverified |
+| GCSL | 6.0% | 16.6 | -5.0% | unverified |
+| SHALPAINTS | 20.3% | 4.9 | -5.0% | unverified |
+| WELSPUNLIV | 14.6% | 6.8 | -4.0% | unverified |
 
 Ex-dates: we tried NSE's official corporate actions feed and page for 2026-11-27 to 2027-03-31.
 Both timed out, and nothing was filled in from memory. Param or Market Data and Licensing should
