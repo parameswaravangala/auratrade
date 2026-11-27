@@ -177,6 +177,70 @@ class JobRunnerIT extends PostgresIntegrationTest {
     assertThat(job.stolen).isFalse();
   }
 
+  @Test
+  void aReleasedLeaseIsNeverRenewedByALateHeartbeat() {
+    var time = new MovingClock(clock.instant());
+    var runner = new JobRunner(runs, time, Duration.ofMinutes(10));
+    assertThat(runs.tryLock("test-daily", runner.owner(), time.instant(), Duration.ofMinutes(10)))
+        .isTrue();
+    var guard = runner.new LeaseGuard("test-daily");
+
+    guard.release();
+    // A heartbeat that read the clock just before the release now arrives: it must do nothing.
+    time.advance(Duration.ofSeconds(-1));
+    guard.beat();
+    time.advance(Duration.ofSeconds(1));
+
+    assertThat(runs.tryLock("test-daily", "other-instance", time.instant(), Duration.ofMinutes(1)))
+        .isTrue();
+    runner.close();
+  }
+
+  @Test
+  void theSameJobCannotRunTwiceInOneProcessEvenWithoutItsLease() {
+    var runner = runner();
+    var nested = new java.util.concurrent.atomic.AtomicReference<Result>();
+    var job =
+        new DailyJob() {
+          @Override
+          public JobOutcome execute(JobWindow window) {
+            // The lease is lost (say, heartbeats failed): another trigger here must still wait.
+            jdbc.sql("update job_lock set locked_until = :t")
+                .param("t", java.sql.Timestamp.from(clock.instant().minusSeconds(1)))
+                .update();
+            nested.set(runner.run(this, Trigger.MANUAL));
+            return super.execute(window);
+          }
+        };
+
+    assertThat(runner.run(job, Trigger.SCHEDULE)).isEqualTo(Result.RAN);
+
+    assertThat(nested.get()).isEqualTo(Result.LOCKED);
+    assertThat(job.executed).hasSize(1);
+    assertThat(lastStatus()).isEqualTo(Status.SUCCEEDED);
+  }
+
+  @Test
+  void aRunClosedAsAbandonedElsewhereStaysClosedWhenItFinishes() {
+    var job =
+        new DailyJob() {
+          @Override
+          public JobOutcome execute(JobWindow window) {
+            // Another process took the lapsed lease and closed this live run as abandoned.
+            runs.closeAbandoned(name(), clock.instant());
+            return super.execute(window);
+          }
+        };
+
+    assertThat(runner().run(job, Trigger.SCHEDULE)).isEqualTo(Result.RAN);
+
+    var run = runs.recent(1).get(0);
+    assertThat(run.status()).isEqualTo(Status.FAILED);
+    assertThat(run.detail())
+        .startsWith("abandoned:")
+        .contains("Finished after being closed as abandoned: SUCCEEDED, 10 ok, 0 failed.");
+  }
+
   private static void sleep(long millis) {
     try {
       Thread.sleep(millis);

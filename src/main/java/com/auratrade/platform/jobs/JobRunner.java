@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  * <p>FAILED and PARTIAL runs, and jobs that cannot plan (for example an uncovered calendar year),
  * are reported on the JobAlerts logger, which a real channel can replace later.
  */
-public class JobRunner {
+public class JobRunner implements AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(JobRunner.class);
   private static final Logger alerts =
@@ -47,6 +47,8 @@ public class JobRunner {
   private final Clock clock;
   private final Duration lease;
   private final String owner = "auratrade-" + UUID.randomUUID();
+  private final java.util.Set<String> runningHere =
+      java.util.concurrent.ConcurrentHashMap.newKeySet();
   private final ScheduledExecutorService heartbeat =
       Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "job-lease-heartbeat");
@@ -61,14 +63,28 @@ public class JobRunner {
   }
 
   public Result run(ScheduledJob job, Trigger trigger) {
+    // In this process a job never runs twice at once, even after its lease was lost; so the
+    // abandoned-run cleanup below can never close a run that is still alive here.
+    if (!runningHere.add(job.name())) {
+      log.info("{} is already running in this process; {} trigger skipped", job.name(), trigger);
+      return Result.LOCKED;
+    }
+    try {
+      return runLocked(job, trigger);
+    } finally {
+      runningHere.remove(job.name());
+    }
+  }
+
+  private Result runLocked(ScheduledJob job, Trigger trigger) {
     if (!runs.tryLock(job.name(), owner, clock.instant(), lease)) {
       log.info("{} is already running elsewhere; {} trigger skipped", job.name(), trigger);
       return Result.LOCKED;
     }
+    LeaseGuard guard = new LeaseGuard(job.name());
     long period = Math.max(1, lease.toMillis() / 3);
-    ScheduledFuture<?> renewal =
-        heartbeat.scheduleAtFixedRate(
-            () -> renew(job.name()), period, period, TimeUnit.MILLISECONDS);
+    guard.renewal =
+        heartbeat.scheduleAtFixedRate(guard::beat, period, period, TimeUnit.MILLISECONDS);
     try {
       int abandoned = runs.closeAbandoned(job.name(), clock.instant());
       if (abandoned > 0) {
@@ -90,20 +106,56 @@ public class JobRunner {
       }
       return execute(job, trigger, window.get());
     } finally {
-      renewal.cancel(false);
-      runs.unlock(job.name(), owner, clock.instant());
+      guard.release();
     }
   }
 
-  private void renew(String job) {
-    try {
-      if (!runs.renew(job, owner, clock.instant(), lease)) {
-        alerts.warn("{}: lease lost while running; another trigger may start it", job);
-      }
-    } catch (RuntimeException e) {
-      // A failed heartbeat must not end the schedule: the next one tries again.
-      log.warn("{}: could not renew the lease: {}", job, e.getMessage());
+  /**
+   * One run's lease. Renewal and release share a monitor and a released flag, so a renewal already
+   * in flight finishes before the release, and none can land after it: a released lease is never
+   * extended again.
+   */
+  final class LeaseGuard {
+    private final String job;
+    private boolean released;
+    ScheduledFuture<?> renewal;
+
+    LeaseGuard(String job) {
+      this.job = job;
     }
+
+    synchronized void beat() {
+      if (released) {
+        return;
+      }
+      try {
+        if (!runs.renew(job, owner, clock.instant(), lease)) {
+          alerts.warn("{}: lease lost while running; another process may start it", job);
+        }
+      } catch (RuntimeException e) {
+        // A failed heartbeat must not end the schedule: the next one tries again.
+        log.warn("{}: could not renew the lease: {}", job, e.getMessage());
+      }
+    }
+
+    synchronized void release() {
+      released = true;
+      if (renewal != null) {
+        renewal.cancel(false);
+      }
+      runs.unlock(job, owner, clock.instant());
+    }
+  }
+
+  /** This process's lease owner id (for tests). */
+  String owner() {
+    return owner;
+  }
+
+  /** Stops the heartbeat thread; Spring calls it when the context closes. */
+  @Override
+  public void close() {
+    heartbeat.shutdownNow();
   }
 
   private Result execute(ScheduledJob job, Trigger trigger, JobWindow w) {
@@ -113,7 +165,7 @@ public class JobRunner {
       JobOutcome outcome = job.execute(w);
       Status status = outcome.failed() > 0 ? Status.PARTIAL : Status.SUCCEEDED;
       String detail = join(w.note(), outcome.detail());
-      runs.finish(id, status, outcome.ok(), outcome.failed(), clip(detail), clock.instant());
+      finish(job, id, status, outcome.ok(), outcome.failed(), clip(detail));
       if (status == Status.PARTIAL) {
         alerts.warn(
             "{} {} to {} PARTIAL: {} ok, {} failed. {}",
@@ -131,9 +183,34 @@ public class JobRunner {
       }
       return Result.RAN;
     } catch (RuntimeException e) {
-      runs.finish(id, Status.FAILED, 0, 0, clip(describe(e)), clock.instant());
+      finish(job, id, Status.FAILED, 0, 0, clip(describe(e)));
       alerts.warn("{} {} to {} FAILED: {}", job.name(), w.from(), w.to(), e.getMessage());
       return Result.FAILED;
+    }
+  }
+
+  /**
+   * Records the outcome, unless another process closed the run as abandoned meanwhile (its lease
+   * had lapsed): then the closed status stands and the outcome is appended to the detail, with an
+   * alert, so history never shows a falsely closed run as finished normally.
+   */
+  private void finish(ScheduledJob job, long id, Status status, int ok, int failed, String detail) {
+    if (!runs.finish(id, status, ok, failed, detail, clock.instant())) {
+      runs.appendDetail(
+          id,
+          " Finished after being closed as abandoned: "
+              + status
+              + ", "
+              + ok
+              + " ok, "
+              + failed
+              + " failed.");
+      alerts.warn(
+          "{}: run {} finished ({}) after another process had closed it as abandoned; check for a"
+              + " second, overlapping run",
+          job.name(),
+          id,
+          status);
     }
   }
 

@@ -124,18 +124,32 @@ public class JobRunRepository {
         .single();
   }
 
-  public void finish(long id, Status status, int ok, int failed, String detail, Instant now) {
-    jdbc.sql(
-            """
-            update job_run set status = :status, items_ok = :ok, items_failed = :failed,
-                               detail = :detail, finished_at = :now
-            where id = :id
-            """)
-        .param("status", status.name())
-        .param("ok", ok)
-        .param("failed", failed)
-        .param("detail", detail)
-        .param("now", Timestamp.from(now))
+  /**
+   * Records a run's outcome if it is still RUNNING.
+   *
+   * @return false if the run was already closed (for example as abandoned); nothing is changed
+   */
+  public boolean finish(long id, Status status, int ok, int failed, String detail, Instant now) {
+    return jdbc.sql(
+                """
+                update job_run set status = :status, items_ok = :ok, items_failed = :failed,
+                                   detail = :detail, finished_at = :now
+                where id = :id and status = 'RUNNING'
+                """)
+            .param("status", status.name())
+            .param("ok", ok)
+            .param("failed", failed)
+            .param("detail", detail)
+            .param("now", Timestamp.from(now))
+            .param("id", id)
+            .update()
+        == 1;
+  }
+
+  /** Appends text to a run's detail, whatever its status. */
+  public void appendDetail(long id, String text) {
+    jdbc.sql("update job_run set detail = coalesce(detail, '') || :text where id = :id")
+        .param("text", text)
         .param("id", id)
         .update();
   }
