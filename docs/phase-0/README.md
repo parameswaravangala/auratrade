@@ -38,7 +38,7 @@ Compliance & Legal Research, Market Data & Licensing, Quant Research, Platform &
 | F2 | Exempt R0 from the freeze: the localhost/Host-Origin hotfix and Dockerfile fix (draft PR), the corporate-action guard on held paper positions, the calendar 2027 load, terms research | Exempt all four. They are live defects or deadlines, not features |
 | F3 | Paper account 1: mechanical (no news-based overrides) or discretionary? | Keep it mechanical; log an override reason if you ever deviate; a second discretionary account later if wanted |
 | F4 | Days you cannot decide before 09:15 | Proposals expire, as today, and the miss is logged against criterion 5 |
-| F5 | Go-live criteria (ADR 0024): reword as "within the backtest distribution", with the `stopMode=NEXT_OPEN` reference | Wait for the Quant Research note, then decide |
+| F5 | Go-live criteria (ADR 0024): the Quant note (PR #40) shows that 50 trades cannot prove an edge (t ≈ 0.6), and that the −25 % drawdown limit is stricter than the strategy's own backtest (−30 % out of sample) | Rewrite as a fidelity replay plus 5th to 95th percentile consistency; set thresholds after the `stopMode=NEXT_OPEN` rerun |
 | F6 | Ops alert channel (B-027): Telegram bot, email, or ntfy | Telegram bot (free; verify its terms) |
 | F7 | Off-machine backup target (zero cost) | An encrypted dump to a cloud drive you already have |
 | F8 | Audit anchor: a separate private git repo, or a message to the alert channel | The alert channel, once F6 is decided |
