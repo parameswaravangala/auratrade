@@ -35,7 +35,7 @@ Compliance & Legal Research, Market Data & Licensing, Quant Research, Platform &
 | # | Decision | Recommendation |
 |---|---|---|
 | F1 | Approve the Phase 0 architecture and direction (ADRs 0030 to 0037), in full or in part | Approve. Partial approval of R1 is possible while the business docs are revised |
-| F2 | Exempt R0 from the freeze: the localhost/Host-Origin hotfix and Dockerfile fix (draft PR), the corporate-action guard on held paper positions, the calendar 2027 load, terms research | Exempt all four. They are live defects or deadlines, not features |
+| F2 | Freeze exemptions | **Moot**: the freeze ended when Phase 0 was approved (2026-11-27). R0-02, the corporate-action guard, is Backend Engine's first task (Delivery Coordinator board) |
 | F3 | Paper account 1: mechanical (no news-based overrides) or discretionary? | Keep it mechanical; log an override reason if you ever deviate; a second discretionary account later if wanted |
 | F4 | Days you cannot decide before 09:15 | Proposals expire, as today, and the miss is logged against criterion 5 |
 | F5 | Go-live criteria (ADR 0024): the Quant note (PR #40) shows that 50 trades cannot prove an edge (t ≈ 0.6), and that the −25 % drawdown limit is stricter than the strategy's own backtest (−30 % out of sample) | Rewrite as a fidelity replay plus 5th to 95th percentile consistency; set thresholds after the `stopMode=NEXT_OPEN` rerun |
