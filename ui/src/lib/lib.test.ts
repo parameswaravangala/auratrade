@@ -6,7 +6,7 @@ import { calendarDaysBehind, rangeDates, summarise, toChartBars } from "./candle
 import { formatDuration, formatInt, formatPrice, formatSigned } from "./format";
 import { trace } from "./resolution";
 import { addDays, daysBetween, istDate, istTime } from "./time";
-import { describe as describeRun, health, latestByJob, layoutRuns } from "./timeline";
+import { describe as describeRun, health, latestByJob, layoutRuns, rejectedRows } from "./timeline";
 
 describe("time in IST", () => {
   it("shows UTC instants in Asia/Kolkata", () => {
@@ -96,6 +96,18 @@ describe("job timeline", () => {
     expect(describeRun(RUNS[1]!)).toBe(
       "partly done (startup catch-up): 0 ok, 50 failed. Upstox token not set",
     );
+  });
+  it("reads rejected instrument rows from the run detail", () => {
+    const im = run({
+      id: 5,
+      jobName: "instrument-master",
+      itemsOk: 10049,
+      itemsFailed: 0,
+      detail:
+        "UPSTOX: 10049 rows, 0 added, 0 not in file, 0 renamed, 1 rejected [X (NSE_EQ|IN0000000000): invalid ISIN]",
+    });
+    expect(rejectedRows(im)).toBe(1);
+    expect(rejectedRows(run({ id: 6, jobName: "instrument-master", itemsFailed: 2, detail: null }))).toBe(2);
   });
 });
 
