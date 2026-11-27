@@ -175,4 +175,19 @@ class MarketDataConfig {
   CandleSeriesReader candleSeriesReader(JdbcClient jdbc) {
     return new CandleSeriesReader(jdbc);
   }
+
+  /**
+   * Same cutoff, series and benchmarks as the eod-candles job, so freshness measures what it loads.
+   */
+  @Bean
+  DataFreshnessService dataFreshnessService(
+      CandleIngestionService ingestion,
+      JdbcClient jdbc,
+      TradingCalendar calendar,
+      Clock clock,
+      @Value("${auratrade.jobs.eod-candles.cutoff:19:00}") java.time.LocalTime cutoff,
+      @Value("${auratrade.jobs.eod-candles.series:EQ}") List<String> series,
+      @Value("${auratrade.jobs.eod-candles.benchmarks:NIFTY}") List<String> benchmarks) {
+    return new DataFreshnessService(ingestion, jdbc, calendar, clock, cutoff, series, benchmarks);
+  }
 }
