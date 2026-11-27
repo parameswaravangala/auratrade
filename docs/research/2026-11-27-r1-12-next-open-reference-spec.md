@@ -101,6 +101,22 @@ Each run starts with fresh capital. The periods are the same as the sweep note's
 | R-C | C | same three periods (**the reference**) |
 | G-C | C, sweep grid | `/dev/backtest/sweep` in mode C: stop 1.5, 2 or 3 x ATR; hold 20, 60 or 120; regime off or on (18 combinations), split 2023-01-01 |
 
+### Risk-per-trade search for account 2 (Param's F5 decision, option 2, 2026-11-27)
+
+Param chose a fixed -25% drawdown limit, with the risk per trade lowered until the reference
+backtest stays within it, for a new account 2. Account 1 continues as a learning run.
+
+| Run | Mode | Settings | Periods |
+|---|---|---|---|
+| R-C-risk | C | as section 2, except riskPct in {1.0, 0.75, 0.6, 0.5, 0.4, 0.3, 0.25}; nothing else changes | full, in-sample, out-of-sample |
+
+The chosen value is the **largest riskPct whose maximum drawdown is no deeper than -25% in all
+three periods**. For that value, also report the 1st percentile of the rolling 12-month
+drawdowns, CAGR against Nifty, trades a year, and average invested fraction. Lower risk means
+smaller positions and more idle cash. If no grid value passes, or if the chosen value no longer
+beats Nifty CAGR in the full and out-of-sample periods, report that and stop. Changing other
+settings (positions, maximum position) is Param's call, not the rerun's.
+
 Data snapshot: run every run against the same database state. Record the following in the
 results note:
 
@@ -147,7 +163,7 @@ Run at a commit that includes #32 (fund units excluded).
 | D2 | How big is the mismatch? | If \|CAGR(R-C) - CAGR(R-A)\| > 3 points in any period, the 2026-11-26 notes get a correction pointer, and every later paper-versus-backtest comparison uses mode C only. | Quant, then Backend Engine (notes) |
 | D3 | Is the edge established even in the backtest? | Full-period R-C per-trade t >= 2: say "established in the backtest (survivorship-biased)". Otherwise, "not established". Going live then needs R6 and R7 (B-020 adjustment, delisted shares) and a rerun first. | Quant |
 | D4 | Go-live thresholds | Section 4 items 4 and 5 for R-C full period fill the placeholders in `2026-11-27-go-live-criteria-proposal.md`: [X] 5th percentile of 12-month excess, [Y] 5th percentile of 12-month drawdown, [Z] 1st percentile of 12-month drawdown, and the bootstrap bands. | Quant drafts, Param decides (F5) |
-| D5 | Is the -25% drawdown limit compatible? | If [Y] is deeper than -25%, the current criterion (3) fails a strategy that behaves exactly like its backtest. Param then chooses option 1 or 2 in the proposal. | Param |
+| D5 | Account 2's risk per trade (F5 option 2, decided) | The R-C-risk choice above becomes account 2's riskPct, and the go-live thresholds [X] and the bootstrap bands are recomputed at that riskPct. If nothing passes, or the chosen value no longer beats Nifty, go back to Param before account 2 opens. | Quant reports, Param approves account 2's settings |
 
 ## Out of scope
 
