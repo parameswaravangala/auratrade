@@ -39,9 +39,9 @@ Compliance & Legal Research, Market Data & Licensing, Quant Research, Platform &
 | F3 | Paper account 1: mechanical (no news-based overrides) or discretionary? | Keep it mechanical; log an override reason if you ever deviate; a second discretionary account later if wanted |
 | F4 | Days you cannot decide before 09:15 | Proposals expire, as today, and the miss is logged against criterion 5 |
 | F5 | Go-live criteria (ADR 0024): the Quant note (PR #40) shows that 50 trades cannot prove an edge (t ≈ 0.6), and that the −25 % drawdown limit is stricter than the strategy's own backtest (−30 % out of sample) | Rewrite as a fidelity replay plus 5th to 95th percentile consistency; set thresholds after the `stopMode=NEXT_OPEN` rerun |
-| F6 | Ops alert channel (B-027): Telegram bot, email, or ntfy | Telegram bot (free; verify its terms) |
+| F6 | Ops alert channel (B-027) | **Decided: email** (founder to Product Owner, relayed by the Delivery Coordinator on 2026-11-27; confirm when you approve). Still open: which SMTP account or provider, and the sender and recipient addresses (secrets in `.env` only). Verify the provider's sending limits and pricing before building |
 | F7 | Off-machine backup target (zero cost) | An encrypted dump to a cloud drive you already have |
-| F8 | Audit anchor: a separate private git repo, or a message to the alert channel | The alert channel, once F6 is decided |
+| F8 | Audit anchor: a separate private git repo, or a daily email | A daily email of the chain heads to your own mailbox. It is outside the database and the laptop, and needs no new account. A signed commit in a private repo is the stronger option if you want the anchor to be verifiable by someone else |
 | F9 | A personal tool for 12 months, or a business? Day-90 continue-or-kill criterion | Personal tool until gates G1 and G2 have quotes; decide at Day 90 |
 | F10 | Update CLAUDE.md "Stack" to the facts (Java 25, Spring AI 2.1.0) and to the reset decisions after approval | Yes |
 | F11 | Software licence for the repo (LICENSE file) | Proprietary, all rights reserved |
