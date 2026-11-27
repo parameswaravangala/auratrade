@@ -99,6 +99,7 @@ class DataFreshnessServiceIT extends PostgresIntegrationTest {
     var f = service("2026-01-23T20:00").freshness(); // Friday, after 19:00 IST
 
     assertThat(f.expectedSession()).isEqualTo(LocalDate.parse("2026-01-23"));
+    assertThat(f.eodCutoff()).isEqualTo("19:00");
     assertThat(f.source()).isEqualTo("FAKE");
     assertThat(f.latestSession()).isEqualTo(LocalDate.parse("2026-01-23"));
     assertThat(f.sessionsBehind()).isZero();

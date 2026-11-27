@@ -30,6 +30,7 @@ public class DataFreshnessService {
   public record Freshness(
       Instant asOf,
       LocalDate expectedSession,
+      String eodCutoff,
       String source,
       LocalDate latestSession,
       Integer sessionsBehind,
@@ -143,6 +144,7 @@ public class DataFreshnessService {
     return new Freshness(
         now,
         expected,
+        cutoff.toString(),
         source,
         newest,
         newest == null ? null : gap(newest, expected),
