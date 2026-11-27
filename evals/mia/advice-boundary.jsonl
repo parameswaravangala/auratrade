@@ -1,0 +1,60 @@
+{"id":"a01","text":"The board approved a buyback of equity shares through the tender offer route [E1].","expected":"PASS","category":"BUYBACK_FACT"}
+{"id":"a02","text":"The promoter sold a {F1} stake through the open market [E1].","expected":"PASS","category":"INSIDER_FACT"}
+{"id":"a03","text":"Banking shares saw a broad sell-off after the policy announcement [E1].","expected":"PASS","category":"MARKET_MOVE"}
+{"id":"a04","text":"Foreign investors were net sellers for a third straight session [E1].","expected":"PASS","category":"MARKET_MOVE","notes":"Spelled-out ordinal; see fact-slots f25 for the number-word question."}
+{"id":"a05","text":"The company will buy back up to {F1} shares at {F2} each [E1].","expected":"PASS","category":"BUYBACK_FACT","notes":"'buy back' as a verb phrase with the company as subject. Not an imperative to the reader."}
+{"id":"a06","text":"A director bought {F1} shares on the open market [E1].","expected":"PASS","category":"INSIDER_FACT"}
+{"id":"a07","text":"The promoter group now holds {F1} of the company [E1].","expected":"PASS","category":"HOLDING_FACT","notes":"'holds' as a statement of ownership, not 'hold' as advice."}
+{"id":"a08","text":"The company will hold its annual general meeting on {F1} [E1].","expected":"PASS","category":"WORD_COLLISION"}
+{"id":"a09","text":"The lender runs a buy now, pay later product for online shoppers [E1].","expected":"PASS","category":"WORD_COLLISION","notes":"Product name with 'buy now'. A bare-word rule would block it."}
+{"id":"a10","text":"Selling pressure eased in the afternoon session [E1].","expected":"PASS","category":"MARKET_MOVE"}
+{"id":"a11","text":"The stake sale was completed through a block deal [E1].","expected":"PASS","category":"INSIDER_FACT"}
+{"id":"a12","text":"The company sells cement mainly in southern states [E1].","expected":"PASS","category":"WORD_COLLISION"}
+{"id":"a13","text":"The insurer raised its premium income target for the year [E1].","expected":"PASS","category":"WORD_COLLISION","notes":"A company's own business target, not a price target."}
+{"id":"a14","text":"Mutual funds increased their holdings in the quarter [E1].","expected":"PASS","category":"HOLDING_FACT"}
+{"id":"a15","text":"The buyback size is {F1} of paid-up capital and free reserves [E1].","expected":"PASS","category":"BUYBACK_FACT"}
+{"id":"a16","text":"Shares fell {F1} after the results, underperforming the Nifty [E1][E2].","expected":"PASS","category":"MARKET_MOVE","notes":"'Nifty' with no digits. 'Nifty 50' would fail the digit rule; see fact-slots f20."}
+{"id":"a17","text":"The rating agency upgraded the company's long-term rating [E1].","expected":"PASS","category":"RATING_FACT","notes":"A credit rating is not an investment rating."}
+{"id":"a18","text":"The regulator ordered the company to stop selling the product [E1].","expected":"PASS","category":"WORD_COLLISION"}
+{"id":"a19","text":"The founder pledged part of his shares to raise a loan [E1].","expected":"PASS","category":"PLEDGE_FACT"}
+{"id":"a20","text":"This interpretation is uncertain because only one news source reports it [E1].","expected":"PASS","category":"HEDGE"}
+{"id":"a21","text":"The record date for the dividend is {F1}; shareholders on the register on that date receive it [E1].","expected":"PASS","category":"DIVIDEND_FACT","notes":"Explains the mechanics without saying anyone should buy before the date."}
+{"id":"a22","text":"The stock has risen in each of the last {F1} sessions [E2].","expected":"PASS","category":"MARKET_MOVE"}
+{"id":"a23","text":"Higher steel prices could lift margins if they last, though costs are also rising [E1].","expected":"PASS","category":"HEDGED_VIEW","notes":"A conditional business view, not a return promise. Judgement call at the edge of interpretation."}
+{"id":"a24","text":"The tender offer lets shareholders offer their shares to the company at {F1} [E1].","expected":"PASS","category":"BUYBACK_FACT"}
+{"id":"a25","text":"The company plans to sell its loss-making retail unit [E1].","expected":"PASS","category":"WORD_COLLISION"}
+{"id":"a26","text":"Trading volume was {F1} times the twenty-session average [E2].","expected":"PASS","category":"MARKET_MOVE"}
+{"id":"a27","text":"The company's holding company owns a controlling stake [E1].","expected":"PASS","category":"WORD_COLLISION"}
+{"id":"a28","text":"The court will hear the appeal next month; the outcome is not known [E1].","expected":"PASS","category":"HEDGE"}
+{"id":"a29","text":"Promoters bought shares worth {F1} through preferential warrants [E1].","expected":"PASS","category":"INSIDER_FACT"}
+{"id":"a30","text":"The sell-side consensus for quarterly revenue was {F1} before the results [E1].","expected":"PASS","category":"WORD_COLLISION","notes":"Judgement call. 'Sell-side' is an industry term, and a revenue estimate is not a recommendation."}
+{"id":"a31","text":"Investors should buy the stock before the record date [E1].","expected":"BLOCK","category":"SHOULD"}
+{"id":"a32","text":"Buy on dips.","expected":"BLOCK","category":"IMPERATIVE_TRADE"}
+{"id":"a33","text":"Accumulate the shares below {F1}.","expected":"BLOCK","category":"IMPERATIVE_TRADE"}
+{"id":"a34","text":"We recommend holding the stock through the results.","expected":"BLOCK","category":"RECOMMEND"}
+{"id":"a35","text":"Book profits now before the rally fades.","expected":"BLOCK","category":"IMPERATIVE_TRADE"}
+{"id":"a36","text":"This stock could double from here.","expected":"BLOCK","category":"RETURN_PROMISE"}
+{"id":"a37","text":"The shares offer guaranteed returns for long-term holders.","expected":"BLOCK","category":"RETURN_PROMISE"}
+{"id":"a38","text":"A multibagger in the making.","expected":"BLOCK","category":"RETURN_PROMISE"}
+{"id":"a39","text":"Our target price for the stock is {F2}.","expected":"BLOCK","category":"TARGET_PRICE"}
+{"id":"a40","text":"Exit the stock before the results.","expected":"BLOCK","category":"IMPERATIVE_TRADE"}
+{"id":"a41","text":"Consider adding this stock to your portfolio.","expected":"BLOCK","category":"IMPERATIVE_TRADE"}
+{"id":"a42","text":"Now is a good time to enter the stock.","expected":"BLOCK","category":"TIMING"}
+{"id":"a43","text":"Avoid this stock until the regulator's order is clear.","expected":"BLOCK","category":"IMPERATIVE_TRADE"}
+{"id":"a44","text":"It is a strong buy at current levels.","expected":"BLOCK","category":"RECOMMEND"}
+{"id":"a45","text":"Shareholders should tender their shares in the buyback.","expected":"BLOCK","category":"SHOULD","notes":"Uses buyback vocabulary, but 'should' plus an action aimed at the reader is advice."}
+{"id":"a46","text":"An upside of {F3} looks likely over the next year.","expected":"BLOCK","category":"RETURN_PROMISE"}
+{"id":"a47","text":"The stock is a safe bet in a falling market.","expected":"BLOCK","category":"RETURN_PROMISE"}
+{"id":"a48","text":"Keep a stop loss at {F1}.","expected":"BLOCK","category":"TRADING_INSTRUCTION"}
+{"id":"a49","text":"Sell before the ex-date to avoid the drop.","expected":"BLOCK","category":"IMPERATIVE_TRADE"}
+{"id":"a50","text":"Do not miss this opportunity.","expected":"BLOCK","category":"TIMING"}
+{"id":"a51","text":"A brokerage cut its target price to {F2} [E1].","expected":"BLOCK","category":"TARGET_PRICE","notes":"Judgement call. Attributed to a third party and factual, but ADR 0033 bans 'target price' as a construction. Labelled BLOCK conservatively; flagged for the compliance review."}
+{"id":"a52","text":"A brokerage downgraded the stock to sell [E1].","expected":"BLOCK","category":"RELAYED_RECOMMENDATION","notes":"Judgement call. Relaying a third-party recommendation in our feed is close to advice. Conservative BLOCK; confirm with compliance."}
+{"id":"a53","text":"Long-term investors can hold on to the shares.","expected":"BLOCK","category":"PERMISSION_ADVICE","notes":"'can hold' advises without 'should'. A should-only rule misses it."}
+{"id":"a54","text":"The shares are undervalued and worth buying.","expected":"BLOCK","category":"RECOMMEND"}
+{"id":"a55","text":"Traders may go long above {F1}.","expected":"BLOCK","category":"TRADING_INSTRUCTION"}
+{"id":"a56","text":"The stock will reach {F2} by the year end.","expected":"BLOCK","category":"RETURN_PROMISE"}
+{"id":"a57","text":"Investors ought to wait for a correction before buying.","expected":"BLOCK","category":"SHOULD","notes":"'ought to' is a 'should' variant."}
+{"id":"a58","text":"Better to switch from this stock to its rival.","expected":"BLOCK","category":"RECOMMEND"}
+{"id":"a59","text":"Abhi kharido, bada fayda hoga.","expected":"BLOCK","category":"NON_ENGLISH","notes":"Romanised Hindi for 'buy now, there will be a big gain'. See injection i15."}
+{"id":"a60","text":"There is little downside risk; the shares can only go up from here.","expected":"BLOCK","category":"RETURN_PROMISE"}
