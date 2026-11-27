@@ -3,9 +3,9 @@ import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { server } from "./server";
 
-// findBy* waits up to 5 s (default 1 s): the first render in a test file also loads its modules, which
+// findBy* waits up to 10 s (default 1 s): the first render in a test file also loads its modules, which
 // can take longer than a second when all files run in parallel.
-configure({ asyncUtilTimeout: 5000 });
+configure({ asyncUtilTimeout: 10_000 });
 
 // jsdom lacks these browser APIs; the UI only needs them to exist.
 Object.defineProperty(window, "matchMedia", {

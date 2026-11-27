@@ -8,12 +8,15 @@ type Props = {
   className?: string;
   children: ReactNode;
   delay?: number;
+  /** Anchor for links such as #job-timeline. */
+  id?: string;
 };
 
 /** A glass card with the cockpit's uppercase header. */
-export function Panel({ title, badge, aside, className, children, delay = 0 }: Props) {
+export function Panel({ title, badge, aside, className, children, delay = 0, id }: Props) {
   return (
     <section
+      id={id}
       className={clsx("glass panel-in flex min-w-0 flex-col", className)}
       style={{ animationDelay: `${delay}ms` }}
       aria-label={title}

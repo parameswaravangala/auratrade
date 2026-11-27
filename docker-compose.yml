@@ -7,7 +7,8 @@ services:
       POSTGRES_USER: aura
       POSTGRES_PASSWORD: ${DB_PASSWORD:-aura_dev}
     ports:
-      - "5433:5432"
+      # Loopback only: never publish the database on the LAN.
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -18,10 +19,12 @@ services:
 
   # Optional local LLM for dev: docker compose --profile local-llm up -d
   ollama:
-    image: ollama/ollama
+    # Latest GA release, checked 2026-11-27 on github.com/ollama/ollama/releases. Bump on purpose.
+    image: ollama/ollama:0.40.18
     profiles: ["local-llm"]
     ports:
-      - "11434:11434"
+      # Loopback only: Ollama has no authentication.
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama:/root/.ollama
 
