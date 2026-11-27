@@ -37,7 +37,7 @@ auratrade/
 
 - Java 25, Spring Boot 4.2, constructor injection, records for value types, `sealed` result types (see `SymbolResolverService`: Resolved, Ambiguous, Unresolved).
 - Hexagonal *inside* a module where there is an external dependency: port interface in the module, adapter class named after the provider (`UpstoxCandleProvider`). No hexagonal ceremony for pure logic.
-- Money is BigDecimal; time comes from an injected Clock; UTC is stored; IST is for boundaries. No `double` in money or price paths (ArchUnit rule: no `double` fields in `backtest`, `paperbroker`, `screener.indicators` value types). Indicator internals may use `double` only where an ADR permits, which none does today.
+- Money is BigDecimal; time comes from an injected Clock; UTC is stored; IST is for boundaries. No `double` in money or price paths (ArchUnit rule: no `double` fields in `backtest`, `paperbroker`, `indicators` value types). Indicator internals may use `double` only where an ADR permits, which none does today.
 - Logging: SLF4J, structured key=value, correlation id in the MDC, and never tokens, prompts with PII, or full news bodies.
 - Errors: one `@RestControllerAdvice` producing RFC 9457 problems; domain exceptions carry a `code`.
 - Config: `@ConfigurationProperties` records with validation, and no defaults in prod for providers or secrets.

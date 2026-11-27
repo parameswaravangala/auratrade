@@ -1,4 +1,4 @@
-package com.auratrade.screener.indicators;
+package com.auratrade.indicators;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -147,6 +147,89 @@ public final class Indicators {
       }
     }
     return Optional.of(max);
+  }
+
+  /**
+   * Last value divided by the simple average of the {@code n} values before it, for example today's
+   * volume against the previous 20 sessions. Empty when there are fewer than n + 1 values or the
+   * average is zero.
+   */
+  public static Optional<BigDecimal> ratioToAverage(List<BigDecimal> values, int n) {
+    if (n <= 0 || values.size() < n + 1) {
+      return Optional.empty();
+    }
+    BigDecimal avg = sma(values.subList(0, values.size() - 1), n).orElseThrow();
+    if (avg.signum() == 0) {
+      return Optional.empty();
+    }
+    return Optional.of(values.get(values.size() - 1).divide(avg, MC));
+  }
+
+  /** A confirmed swing point: its position in the series (oldest is 0) and its value. */
+  public record Swing(int index, BigDecimal value) {}
+
+  /**
+   * Confirmed swing highs, oldest first. Bar i is a swing high when its value is strictly above the
+   * {@code strength} bars before it and at least as high as the {@code strength} bars after it, so
+   * of two equal peaks only the first counts. A swing is confirmed only once {@code strength} later
+   * bars exist, so the last {@code strength} bars never qualify (no look-ahead).
+   */
+  public static List<Swing> swingHighs(List<BigDecimal> values, int strength) {
+    return swings(values, strength, 1);
+  }
+
+  /** Confirmed swing lows; the mirror image of {@link #swingHighs}. */
+  public static List<Swing> swingLows(List<BigDecimal> values, int strength) {
+    return swings(values, strength, -1);
+  }
+
+  /** The most recent confirmed swing low, for example a structural stop. */
+  public static Optional<Swing> lastSwingLow(List<BigDecimal> lows, int strength) {
+    List<Swing> s = swingLows(lows, strength);
+    return s.isEmpty() ? Optional.empty() : Optional.of(s.get(s.size() - 1));
+  }
+
+  /** The most recent confirmed swing high. */
+  public static Optional<Swing> lastSwingHigh(List<BigDecimal> highs, int strength) {
+    List<Swing> s = swingHighs(highs, strength);
+    return s.isEmpty() ? Optional.empty() : Optional.of(s.get(s.size() - 1));
+  }
+
+  /**
+   * Whether price structure shows higher highs and higher lows: the last two confirmed swing highs
+   * rise and the last two confirmed swing lows rise. Empty when either has fewer than two swings.
+   */
+  public static Optional<Boolean> higherHighsAndLows(
+      List<BigDecimal> highs, List<BigDecimal> lows, int strength) {
+    List<Swing> h = swingHighs(highs, strength);
+    List<Swing> l = swingLows(lows, strength);
+    if (h.size() < 2 || l.size() < 2) {
+      return Optional.empty();
+    }
+    boolean higherHigh = h.get(h.size() - 1).value().compareTo(h.get(h.size() - 2).value()) > 0;
+    boolean higherLow = l.get(l.size() - 1).value().compareTo(l.get(l.size() - 2).value()) > 0;
+    return Optional.of(higherHigh && higherLow);
+  }
+
+  private static List<Swing> swings(List<BigDecimal> values, int strength, int sign) {
+    if (strength <= 0) {
+      return List.of();
+    }
+    List<Swing> out = new java.util.ArrayList<>();
+    for (int i = strength; i < values.size() - strength; i++) {
+      BigDecimal v = values.get(i);
+      boolean swing = true;
+      for (int j = i - strength; j < i && swing; j++) {
+        swing = v.compareTo(values.get(j)) * sign > 0;
+      }
+      for (int j = i + 1; j <= i + strength && swing; j++) {
+        swing = v.compareTo(values.get(j)) * sign >= 0;
+      }
+      if (swing) {
+        out.add(new Swing(i, v));
+      }
+    }
+    return out;
   }
 
   /** Percentage rounded for display, for example 0.12345 becomes 12.35. */
