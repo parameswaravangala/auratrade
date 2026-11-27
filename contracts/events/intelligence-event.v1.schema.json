@@ -14,6 +14,14 @@
     "instant": { "type": "string", "format": "date-time" },
     "decimal": { "type": "string", "pattern": "^-?[0-9]+(\\.[0-9]+)?$" },
     "isin": { "type": "string", "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$" },
+    "eventType": {
+      "enum": [
+        "EARNINGS_RESULT", "DIVIDEND", "BONUS_SPLIT", "BUYBACK", "M_AND_A", "RESTRUCTURING", "MANAGEMENT_CHANGE",
+        "CREDIT_RATING", "REGULATORY", "ORDER_WIN_CONTRACT", "CAPACITY_EXPANSION", "FUNDRAISE",
+        "PLEDGE_CHANGE", "INSIDER_TRADE", "LITIGATION", "GUIDANCE", "OPERATIONAL_DISRUPTION",
+        "GOVERNANCE_RED_FLAG", "PAYMENT_DEFAULT", "MACRO_RELEASE", "SECTOR_NEWS", "OTHER"
+      ]
+    },
     "citedText": {
       "type": "object",
       "additionalProperties": false,
@@ -27,13 +35,9 @@
   "properties": {
     "schemaVersion": { "const": "1.0" },
     "eventId": { "type": "string", "format": "uuid" },
-    "eventType": {
-      "enum": [
-        "EARNINGS_RESULT", "DIVIDEND", "BONUS_SPLIT", "BUYBACK", "M_AND_A", "MANAGEMENT_CHANGE",
-        "CREDIT_RATING", "REGULATORY_ACTION", "ORDER_WIN_CONTRACT", "CAPACITY_EXPANSION", "FUNDRAISE",
-        "PLEDGE_CHANGE", "INSIDER_TRADE", "LITIGATION", "GUIDANCE", "MACRO_RELEASE", "SECTOR_NEWS", "OTHER"
-      ]
-    },
+    "eventType": { "$ref": "#/$defs/eventType", "description": "Primary type (taxonomy v1.1, ADR 0033 point 12)." },
+    "secondaryTypes": { "type": "array", "items": { "$ref": "#/$defs/eventType" }, "maxItems": 3, "uniqueItems": true },
+    "regulatoryDirection": { "enum": ["ADVERSE", "FAVOURABLE", "NEUTRAL"], "description": "Required when eventType is REGULATORY." },
     "instruments": {
       "type": "array",
       "items": {
@@ -150,5 +154,7 @@
       "then": { "required": ["tenantId"] }
     },
     "correlationId": { "type": "string", "maxLength": 64 }
-  }
+  },
+  "if": { "properties": { "eventType": { "const": "REGULATORY" } } },
+  "then": { "required": ["regulatoryDirection"] }
 }

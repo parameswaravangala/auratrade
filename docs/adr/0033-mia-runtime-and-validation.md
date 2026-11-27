@@ -37,5 +37,14 @@ The draft MIA design (ai-agent-architecture section 3) was reviewed by the AI Ar
 9. **Injection claim, stated honestly**: structural controls stop fabricated numbers, tickers, citations and actions. They do **not** stop a semantically false sentence, for example "regulator cleared the company". Hence summaries of official sources are facts only (template plus slots), and every interpretation carries the "AI interpretation" label.
 10. **Model registry**: a config file plus eval reports committed to git, with Ollama models pinned by digest. It is not a database table in Phase 1.
 
+11. **Fact-slot typing** (AI Evaluation, PR #38): slots are typed. `{F#}` is a numeric fact, `{P#}` a period ("Q2 FY27"), `{R#}` a ratio ("1:2") and `{N#}` a named entity containing digits ("Nifty 50"). The digit rule only applies outside slots. Number words ("two crore", "doubled") also count as numbers and are rejected outside slots.
+12. **Taxonomy v1.1** (AI Evaluation, PR #38):
+    - **Multi-label**: one `primaryType` plus up to 3 `secondaryTypes`, because results, dividends and guidance often arrive in one filing.
+    - **Renamed**: `REGULATORY_ACTION` becomes `REGULATORY` with `direction: ADVERSE | FAVOURABLE | NEUTRAL`.
+    - **Added**: `OPERATIONAL_DISRUPTION`, `GOVERNANCE_RED_FLAG` (for example auditor resignation), `PAYMENT_DEFAULT`, `RESTRUCTURING` (demergers, schemes).
+    - **Pre-filter**: routine compliance filings are labelled `ROUTINE_COMPLIANCE` and never reach classification or alerts.
+    - **Scoring**: a type is scored only once it has ≥ 15 labelled cases. Which 8 types reach that first is an assumption until real filings are counted (R2).
+13. **News-text tickers**: the reworked n21 case still fails *by design*. A real ticker injected into news text resolves legitimately. So only filings from the exchange or the issuer yield `confidence: HIGH` and alerts by default. News-only events are LOW confidence and appear in the feed, not as alerts, until they are corroborated by a filing or by a second independent source.
+
 ## Consequences
 Hallucinated figures become structurally impossible, and interpretations get blander. Alerts fire on the ingest score and are refined after EOD. Small local models never need to do tool calling. Revisit at Phase 3 (Research Coordinator).

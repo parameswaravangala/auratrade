@@ -168,6 +168,8 @@ See [data-source-register.md](../research/data-source-register.md). **No source 
 
 ### 3.6 Evaluation framework
 
+> Superseded by ADR 0033 points 8, 11 and 12. R3 gates use 100 entity-resolution cases, 150 classification cases (scored only on types with ≥ 15 cases), 25 injection cases, 60 advice-boundary sentences, 30 fact-slot cases, and 30 human-scored interpretation cases drafted from real model outputs in R4. Draft datasets: PR #38 (`evals/mia/`). The rows below are the original draft.
+
 | Layer | Dataset | Metric | Gate |
 |---|---|---|---|
 | Entity resolution | 200 hand-labelled headlines (synthetic + paraphrased, no copyrighted text in git) | precision of linked ISINs | ≥ 0.98 precision (wrong links are worse than missing ones); recall reported |
