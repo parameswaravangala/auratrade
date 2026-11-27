@@ -1,0 +1,29 @@
+# Risk register
+
+- Owner: CTO, with each risk's named owner role. Reviewed every sprint review. Approver: founder.
+- Scale: Likelihood (L) and Impact (I) 1 to 5; score = L × I. **≥ 15 red**, 8 to 14 amber, ≤ 7 green.
+
+| ID | Category | Risk | L | I | Score | Mitigation | Owner role | Trigger / review |
+|---|---|---|---|---|---|---|---|---|
+| R-01 | Data licensing | Upstox (S-02) terms do not allow showing prices or derived data to third parties, so the SaaS model has no licensed price data | 4 | 5 | **20** | Read the Upstox API terms (R2-01); price NSE Data (S-07) and licensed vendors; keep `MarketDataProvider` swappable (exists); gate G2 | CDO | before any external user |
+| R-02 | Regulatory | AI interpretation or "opportunities" count as research or advice under SEBI RA/IA regs | 4 | 5 | **20** | Capability classes; ship TOOL/INFORMATION only externally; counsel opinion (gate G1); banned-phrase validator | Compliance | before Phase 4 |
+| R-03 | Data licensing | NSE/BSE announcement pages forbid automated access or redistribution | 3 | 4 | 12 | Check terms (R2-01); fall back to licensed feed or broker; never circumvent bot protection | CDO | R2 |
+| R-04 | AI reliability | Prompt injection alters published intelligence (n21 succeeded every run) | 4 | 4 | **16** | Structural controls (no side-effect tools, numeric/citation validation, quarantine); ≥ 20 injection cases at 0 published successes | AI Security | each eval run |
+| R-05 | AI reliability | Small local models misclassify or hallucinate; quality is unacceptable without paid models | 3 | 3 | 9 | Rules-first classification; LLM only for interpretation; eval gates; paid tier only with approval (B-010) | AI Architect | R3 eval results |
+| R-06 | Quant | Backtests overstate performance: unadjusted corporate actions (B-020), survivorship (no delisted instruments), parameter overfitting | 4 | 4 | **16** | Limitations on every report; corporate-action source; delisted universe; walk-forward; paper go-live criteria (ADR 0024) | Head of Quant | every sprint review (paper decisions depend on it) |
+| R-07 | Security | No authentication or audit on order decisions today (B-031) | 3 | 4 | 12 | Keycloak + audit in R1 before any non-dev profile | CISO | R1 |
+| R-08 | Security | Provider token leak (Upstox token valid to 2027-11-26) | 2 | 4 | 8 | `.env` ignored; gitleaks; log masking; token expiry alert (B-027) | CISO | monthly |
+| R-09 | Operational | Single laptop: EOD/paper jobs miss runs (sleep, offline) | 4 | 2 | 8 | State-driven catch-up (exists); alert delivery (B-027); later a single cheap VM (approval) | SRE | R5 |
+| R-10 | Operational | Trading calendar 2027 not loaded: system fails closed from 2027-01-01 | 5 | 3 | **15** | Load the 2027 NSE holiday list as soon as it is published, reconciled (runbook). `CalendarCoverageCheck` warns from 1 Dec | Market Data Engineer | **by 2026-12-31** |
+| R-11 | Technology | Spring AI 2.1.0 running on Boot 4.1.2 (untested pairing) | 3 | 3 | 9 | Upgrade to Boot 4.2.0 in R1 | CTO | R1 |
+| R-12 | Technology | Reset churn: rework of working software delays value | 3 | 3 | 9 | Reset keeps working modules (ADR 0030); only deltas are rebuilt | CTO | sprint reviews |
+| R-13 | Delivery | One human approver; AI sessions conflict on shared files or numbering (for example ADR 0026 is reserved by B-043) | 4 | 2 | 8 | Team charter; Delivery Coordinator board; ADR numbers reserved in the board; worktrees | Delivery Coordinator | ongoing |
+| R-14 | Cost | Licensed data, legal counsel and paid LLM costs are unknown and may exceed what a solo founder can fund | 4 | 4 | **16** | Get quotes before Phase 4; hypothesis-test willingness to pay first; cost model in the roadmap | CEO / FinOps | before G1/G2 |
+| R-15 | Privacy | DPDP obligations apply from about May 2027, at or before SaaS launch | 3 | 3 | 9 | Privacy by design now (minimal PII, erasure path, processor list) | Data Privacy | Phase 4 |
+| R-16 | Licensing (software) | AGPL/SSPL/BUSL components slip into the product | 2 | 3 | 6 | SBOM licence gate; Valkey over Redis; OpenTofu; Grafana internal only | CTO | each dependency PR |
+| R-17 | External dependency | Upstox API changes or rate-limit changes break EOD | 3 | 3 | 9 | Contract test `-Pcontract` (exists); second provider (B-022) | Market Data Engineer | weekly contract run |
+| R-19 | Security (live) | App and DB/Ollama ports reachable from the LAN, cross-site POSTs and DNS rebinding hit unauthenticated state-changing endpoints | 3 | 4 | 12 | Localhost bind, Host/Origin filter, compose ports on 127.0.0.1 (draft hotfix PR, ADR 0035) | CISO | **now: founder exemption decision** |
+| R-20 | Quant (live) | Paper account has no corporate-action guard: an ex-bonus or split trips the stop and corrupts go-live evidence; the 40 % guard misses 1:2 and 1:4 bonuses | 3 | 4 | 12 | Guard on held positions (move > 15 % vs peers means pause and review); minimal ex-date ingestion for holdings; Quant Research note | Head of Quant | **now: founder exemption decision** |
+| R-21 | Quant | Paper exits (next open after a close breach) differ from backtest exits (at the stop), so "close to the backtest" compares different systems; 50 trades gives low statistical power | 4 | 3 | 12 | `stopMode=NEXT_OPEN` rerun as the reference; criteria reworded as "within the backtest distribution" (founder decision on ADR 0024) | Head of Quant | R1 |
+| R-22 | Technology (live) | Dockerfile runtime JRE 21 versus Java 25 bytecode; the image will not start (CI only builds it) | 5 | 2 | 10 | Fix in the hotfix PR; CI runs the image | Platform | now |
+| R-18 | Product | No product-market fit: crowded Indian retail tools market | 3 | 4 | 12 | Evidence-first positioning; 10 discovery interviews before Phase 4 build; measure founder usage first | CPO | Day 60 |
