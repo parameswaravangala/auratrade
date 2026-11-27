@@ -65,6 +65,18 @@ describe("today strip: paper decisions", () => {
     expect(await within(link).findByText("2 expired undecided in the last 24 h")).toBeInTheDocument();
   });
 
+  it("says the expired count is unavailable when the order history fails", async () => {
+    server.use(
+      http.get("*/api/v1/paper/accounts/:id", () => HttpResponse.json({ ...PAPER_VIEW, proposed: [] })),
+      http.get("*/api/v1/paper/accounts/:id/orders", () =>
+        HttpResponse.json({ detail: "boom" }, { status: 500 }),
+      ),
+    );
+    renderApp("/");
+    const link = await screen.findByRole("link", { name: "No decisions waiting for rs-paper" });
+    expect(await within(link).findByText("expired orders: unavailable")).toBeInTheDocument();
+  });
+
   it("fails closed: an API error reads unavailable, not zero", async () => {
     server.use(
       http.get("*/api/v1/paper/accounts", () => HttpResponse.json({ detail: "boom" }, { status: 500 })),

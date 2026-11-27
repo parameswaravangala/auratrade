@@ -59,10 +59,12 @@ function AccountLine({ account, now }: { account: PaperAccount; now: Date }) {
   if (view.isError) return <Unavailable error={view.error} what={account.name} />;
   const w = waiting(view.data.proposed);
   const expired = orders.data ? recentlyExpired(orders.data, now) : 0;
-  const expiredLine =
-    expired > 0 ? (
-      <span className="num text-[11px] text-dn">{expired} expired undecided in the last 24 h</span>
-    ) : null;
+  // Fail closed: if the order history cannot be read, say so rather than implying none expired.
+  const expiredLine = orders.isError ? (
+    <span className="text-[11px] text-warn">expired orders: unavailable</span>
+  ) : expired > 0 ? (
+    <span className="num text-[11px] text-dn">{expired} expired undecided in the last 24 h</span>
+  ) : null;
 
   if (!w) {
     return (
