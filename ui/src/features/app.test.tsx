@@ -74,23 +74,30 @@ describe("dossier", () => {
   });
 
   it("shows model output as unverified text", async () => {
+    let sent: { contentType: string | null; body: unknown } | undefined;
     server.use(
-      http.post("*/dev/llm/ask", () =>
-        HttpResponse.json({
+      http.post("*/dev/llm/ask", async ({ request }) => {
+        sent = { contentType: request.headers.get("Content-Type"), body: (await request.json()) as unknown };
+        return HttpResponse.json({
           text: "<b>not html</b> A calm trend.",
           tier: "LOCAL",
           model: "llama3.2:3b",
           usage: { inputTokens: 20, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 },
           costUsd: 0,
           runId: "r1",
-        }),
-      ),
+        });
+      }),
     );
     const user = userEvent.setup();
     renderApp("/dossier?symbol=ACME");
     await user.type(await screen.findByLabelText("Ask the copilot"), "What changed?{Enter}");
     expect(await screen.findByText("Model output · unverified")).toBeInTheDocument();
     expect(screen.getByText("<b>not html</b> A calm trend.")).toBeInTheDocument();
+    // JSON only: the backend rejects text/plain, which cross-site forms can send.
+    expect(sent?.contentType).toBe("application/json");
+    const body = sent?.body as { prompt?: unknown } | undefined;
+    expect(typeof body?.prompt).toBe("string");
+    expect(body?.prompt).toContain("What changed?");
   });
 });
 
