@@ -1,6 +1,6 @@
 # ADR 0036: Multi-tenancy with a shared schema; keys now, row-level security at Phase 4
 
-- Status: proposed
+- Status: accepted (founder approved Phase 0 on 2026-11-27)
 - Date: 2026-11-27
 
 ## Context

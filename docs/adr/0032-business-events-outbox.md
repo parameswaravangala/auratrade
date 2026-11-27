@@ -1,6 +1,6 @@
 # ADR 0032: Reliable business events through a transactional outbox, built when first needed
 
-- Status: proposed
+- Status: accepted (founder approved Phase 0 on 2026-11-27)
 - Date: 2026-11-27
 
 ## Context

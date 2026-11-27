@@ -1,7 +1,7 @@
 # AuraTrade Phase 0 package: consolidated proposal for founder approval
 
 - Prepared 2026-11-27 by the "AuraTrade Phase 0 initialization" session, under the master brief (November 2026 edition), with the founder's decision to do a **full reset** owned by this session.
-- Status: **DESIGN, awaiting approval.** No code was changed. Feature work is frozen. Unattended jobs keep running.
+- Status: **APPROVED by the founder on 2026-11-27** ("approved Phase 0"). The freeze on feature work ends; R1 starts as assigned by the Delivery Coordinator. Decisions F2 to F11 below remain open unless recorded as decided.
 - Independence: six reviewers ran as separate subagents (see [review-log.md](review-log.md)). Version checks used three web-fetch agents on official release pages. Regulatory research comes from secondary sources and is being re-checked against primary texts by the Compliance session.
 
 ## 1. Deliverables

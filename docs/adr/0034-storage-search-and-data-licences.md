@@ -1,6 +1,6 @@
 # ADR 0034: Postgres-only storage for Phase 1 and a single data-source licence registry
 
-- Status: proposed
+- Status: accepted (founder approved Phase 0 on 2026-11-27)
 - Date: 2026-11-27
 
 ## Context

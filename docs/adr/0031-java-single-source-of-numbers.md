@@ -1,6 +1,6 @@
 # ADR 0031: Java is the single source of production numbers; the Python lab reads exports only
 
-- Status: proposed
+- Status: accepted (founder approved Phase 0 on 2026-11-27)
 - Date: 2026-11-27
 
 ## Context

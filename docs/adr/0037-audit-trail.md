@@ -1,6 +1,6 @@
 # ADR 0037: Append-only audit trail with an external anchor
 
-- Status: proposed
+- Status: accepted (founder approved Phase 0 on 2026-11-27)
 - Date: 2026-11-27
 
 ## Context

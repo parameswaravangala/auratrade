@@ -1,6 +1,6 @@
 # ADR 0033: Market Intelligence Agent runtime, fact slots and two-phase publication
 
-- Status: proposed
+- Status: accepted (founder approved Phase 0 on 2026-11-27)
 - Date: 2026-11-27
 
 ## Context

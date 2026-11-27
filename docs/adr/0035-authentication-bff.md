@@ -1,6 +1,6 @@
 # ADR 0035: Authentication via a backend-for-frontend session; Keycloak only before external users
 
-- Status: proposed
+- Status: accepted (founder approved Phase 0 on 2026-11-27)
 - Date: 2026-11-27
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR 0030: Phase 0 reset keeps the modular monolith, one Maven project and the Vite SPA
 
-- Status: proposed (Phase 0, awaiting founder approval)
+- Status: accepted (founder approved Phase 0 on 2026-11-27)
 - Date: 2026-11-27
 
 ## Context
