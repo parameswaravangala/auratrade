@@ -1,5 +1,34 @@
 # Proposal F5: rewording the go-live criteria of ADR 0024 (2026-11-27)
 
+**Status: decided 2026-11-27, option 2.** Backend Engine's ADR amending ADR 0024 records it and
+cites this note.
+
+## Decision
+
+Param chose option 2 himself, in the "Param Inbox (approvals & requests)" session on
+2026-11-27. This is his choice as relayed by that session:
+
+> F5: option 2. Fixed -25% drawdown limit, lower risk per trade until the backtest stays within
+> it, a new account 2 with a new start date; account 1 continues as a learning run.
+
+What this means for the text below:
+
+- **Account 2** gets the proposed text, with criterion 3(b) replaced by a fixed limit: "maximum
+  drawdown no deeper than -25%". Its risk per trade is the largest value that keeps the reference
+  run's (R1-12 mode C) maximum drawdown no deeper than -25% in the full, in-sample and
+  out-of-sample periods. R1-12 run R-C-risk, decision rule D5, finds it. [X], [Z] and the
+  bootstrap bands are computed at that risk per trade. The governance rule applies: criteria
+  are written before account 2 opens and frozen from its first closed trade.
+- **Account 1** continues unchanged as a learning run: it tests the implementation (fidelity
+  replay, process, corporate-action reconciliation). It is not eligible for go-live. Its
+  `go_live_criteria` text should say so; that wording belongs in Backend Engine's ADR.
+- If no risk per trade passes, or the chosen one no longer beats Nifty, the decision goes back
+  to Param before account 2 opens.
+
+The rest of this note is the proposal as it was put to Param, kept for the record.
+
+## Proposal (as submitted)
+
 For Param's decision. Drafted by Quantitative Research from the power analysis in
 `2026-11-27-paper-account-validity.md`, section 3 (PR #40). If Param accepts it, Backend Engine
 records it as an ADR amending ADR 0024. The ADR should keep the old text and the date, and
