@@ -29,6 +29,13 @@ public class CandleSeriesReader {
   private static final String EXCHANGE = "NSE";
   private static final int CHUNK = 200;
 
+  /**
+   * ISIN prefix of fund units (ETFs and other scheme units). The Upstox file lists them in series
+   * EQ with instrument type EQ, like company shares; in our instrument table every active EQ row
+   * with this prefix is named as an AMC or ETF unit (checked 2026-11-27, business-user review P10).
+   */
+  static final String FUND_UNIT_ISIN_PREFIX = "INF";
+
   private final JdbcClient jdbc;
 
   CandleSeriesReader(JdbcClient jdbc) {
@@ -48,7 +55,8 @@ public class CandleSeriesReader {
 
   /**
    * Hands over the last {@code lookback} candles up to {@code asOf} for every active company share
-   * in {@code series}, one instrument at a time.
+   * in {@code series}, one instrument at a time. Fund units (ETFs) are not company shares and are
+   * left out, though the provider lists them in series EQ.
    */
   public void forEachShare(
       String source,
@@ -62,12 +70,14 @@ public class CandleSeriesReader {
                 """
                 select i.id from instrument i
                 where i.exchange = :exchange and i.isin is not null and i.series in (:series)
+                  and i.isin not like :fundUnits
                   and i.last_seen_on =
                       (select max(last_seen_on) from instrument where exchange = :exchange)
                 order by i.id
                 """)
             .param("exchange", EXCHANGE)
             .param("series", series)
+            .param("fundUnits", FUND_UNIT_ISIN_PREFIX + "%")
             .query(Long.class)
             .list();
     forEachInstrument(source, interval, asOf, lookback, ids, consumer);
