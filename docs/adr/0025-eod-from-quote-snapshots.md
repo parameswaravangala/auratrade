@@ -27,8 +27,9 @@ historical endpoint did not yet have the old one: 1,095 shares and NIFTY lost th
   universe in calls of 500, about 7 calls in all. A bar is stored only if it is dated the window's
   last session, so the clock no longer decides the day. Earlier days of a catch-up window still
   come from history, one call per share.
-- Snapshot bars are provisional. A successful run creates a one-day backfill (ADR 0018) for the
-  previous session, which re-reads it from history in the background and overwrites the bar. Paper
+- Snapshot bars are provisional. Benchmarks re-read the previous session from history in the run
+  itself (one call each, so NIFTY's close is never left provisional). For shares, a successful
+  one-day run creates a one-day backfill (ADR 0018) for the previous session, which re-reads it from history in the background and overwrites the bar. Paper
   trading does not wait for it. If a backfill is already open, no correction is made and the run
   detail says so. `auratrade.jobs.eod-candles.correct-previous-session=false` turns this off.
 - Providers without snapshots keep the old path.
