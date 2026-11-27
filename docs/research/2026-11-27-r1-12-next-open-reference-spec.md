@@ -108,14 +108,28 @@ backtest stays within it, for a new account 2. Account 1 continues as a learning
 
 | Run | Mode | Settings | Periods |
 |---|---|---|---|
-| R-C-risk | C | as section 2, except riskPct in {1.0, 0.75, 0.6, 0.5, 0.4, 0.3, 0.25}; nothing else changes | full, in-sample, out-of-sample |
+| R-C-risk | C | as section 2, except riskPct in {1.0, 0.75, 0.6, 0.5, 0.4, 0.3, 0.25}; nothing else changes | choose on in-sample only; then report full and out-of-sample once |
 
-The chosen value is the **largest riskPct whose maximum drawdown is no deeper than -25% in all
-three periods**. For that value, also report the 1st percentile of the rolling 12-month
-drawdowns, CAGR against Nifty, trades a year, and average invested fraction. Lower risk means
-smaller positions and more idle cash. If no grid value passes, or if the chosen value no longer
-beats Nifty CAGR in the full and out-of-sample periods, report that and stop. Changing other
-settings (positions, maximum position) is Param's call, not the rerun's.
+The rule follows the Product Owner's ruling of 2026-11-27 (B-051 step 2):
+
+1. **Choose on in-sample data only** (2019-01-01 to 2022-12-31). The full period contains the
+   out-of-sample years, so it is not used for choosing either. The chosen value is the **largest
+   riskPct whose [Y], the 5th percentile of the rolling 12-month drawdowns, is no deeper than
+   -25%** after costs. This is the measure in the proposal's option 2.
+2. **Report the full and out-of-sample results once**, at the chosen value, as results. Report
+   [Y], the 1st percentile [Z], the maximum drawdown of each period, CAGR against Nifty, per-trade
+   t, trades a year and average invested fraction. Lower risk means smaller positions and more
+   idle cash.
+3. **Never choose again** on out-of-sample results. If out of sample [Y] is deeper than -25%,
+   it no longer beats Nifty, or per-trade t is below 2 where there are enough trades to measure
+   it, that is a finding for Param. It is not a reason to pick another riskPct.
+
+There is no extra max-drawdown guard. Account 2's criterion is a 12-month drawdown limit, so the
+12-month percentile is the matching measure. A multi-year maximum drawdown would set a much
+stricter limit than the criterion itself. Each period's maximum drawdown is still reported, so
+Param sees how deep a longer bad stretch went. If no grid value passes in-sample, report that
+and stop. Changing other settings (positions, maximum position) is Param's call, not the
+rerun's.
 
 Data snapshot: run every run against the same database state. Record the following in the
 results note:
@@ -163,7 +177,7 @@ Run at a commit that includes #32 (fund units excluded).
 | D2 | How big is the mismatch? | If \|CAGR(R-C) - CAGR(R-A)\| > 3 points in any period, the 2026-11-26 notes get a correction pointer, and every later paper-versus-backtest comparison uses mode C only. | Quant, then Backend Engine (notes) |
 | D3 | Is the edge established even in the backtest? | Full-period R-C per-trade t >= 2: say "established in the backtest (survivorship-biased)". Otherwise, "not established". Going live then needs R6 and R7 (B-020 adjustment, delisted shares) and a rerun first. | Quant |
 | D4 | Go-live thresholds | Section 4 items 4 and 5 for R-C full period fill the placeholders in `2026-11-27-go-live-criteria-proposal.md`: [X] 5th percentile of 12-month excess, [Y] 5th percentile of 12-month drawdown, [Z] 1st percentile of 12-month drawdown, and the bootstrap bands. | Quant drafts, Param decides (F5) |
-| D5 | Account 2's risk per trade (F5 option 2, decided) | The R-C-risk choice above becomes account 2's riskPct, and the go-live thresholds [X] and the bootstrap bands are recomputed at that riskPct. If nothing passes, or the chosen value no longer beats Nifty, go back to Param before account 2 opens. | Quant reports, Param approves account 2's settings |
+| D5 | Account 2's risk per trade (F5 option 2, decided) | The R-C-risk choice above (chosen in-sample on [Y] no deeper than -25%) becomes account 2's riskPct. The go-live thresholds [X] and [Z] and the bootstrap bands are recomputed at that riskPct. If nothing passes in-sample, or the out-of-sample results fail ([Y] deeper than -25%, not beating Nifty, or t below 2 where measurable), go back to Param before account 2 opens, without choosing again. | Quant reports, Param approves account 2's settings |
 
 ## Out of scope
 

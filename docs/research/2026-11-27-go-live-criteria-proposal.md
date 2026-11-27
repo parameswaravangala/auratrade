@@ -15,8 +15,10 @@ What this means for the text below:
 
 - **Account 2** gets the proposed text, with criterion 3(b) replaced by a fixed limit: "maximum
   drawdown no deeper than -25%". Its risk per trade is the largest value that keeps the reference
-  run's (R1-12 mode C) maximum drawdown no deeper than -25% in the full, in-sample and
-  out-of-sample periods. R1-12 run R-C-risk, decision rule D5, finds it. [X], [Z] and the
+  run's (R1-12 mode C) [Y], the 5th percentile of the rolling 12-month drawdowns, no deeper
+  than -25%. It is chosen on in-sample data only, and the full and out-of-sample results are
+  reported once, without choosing again (Product Owner ruling, 2026-11-27). R1-12 run R-C-risk,
+  decision rule D5, finds it. [X], [Z] and the
   bootstrap bands are computed at that risk per trade. The governance rule applies: criteria
   are written before account 2 opens and frozen from its first closed trade.
 - **Account 1** continues unchanged as a learning run: it tests the implementation (fidelity
