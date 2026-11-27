@@ -6,8 +6,11 @@ import com.auratrade.llmgateway.LlmGateway;
 import com.auratrade.llmgateway.LlmResult;
 import com.auratrade.llmgateway.SpendReport;
 import com.auratrade.llmgateway.SpendService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,11 +34,19 @@ class LlmDevController {
     this.spend = spend;
   }
 
-  @PostMapping(path = "/ask", consumes = "text/plain")
+  /**
+   * JSON only: {@code text/plain} is a "simple" content type that a cross-site HTML form can send
+   * without a CORS preflight, so accepting it would let any web page spend LLM budget.
+   */
+  @PostMapping(path = "/ask", consumes = MediaType.APPLICATION_JSON_VALUE)
   LlmResult ask(
-      @RequestParam(defaultValue = "ADHOC_CHAT") AgentType agent, @RequestBody String prompt) {
-    return gateway.call(agent, "You are a concise assistant.", prompt);
+      @RequestParam(defaultValue = "ADHOC_CHAT") AgentType agent,
+      @Valid @RequestBody AskRequest request) {
+    return gateway.call(agent, "You are a concise assistant.", request.prompt());
   }
+
+  /** Body of {@code POST /dev/llm/ask}. */
+  record AskRequest(@NotBlank String prompt) {}
 
   @GetMapping("/spend")
   SpendReport spend() {

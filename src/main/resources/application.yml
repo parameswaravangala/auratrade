@@ -21,6 +21,12 @@ management:
       show-details: never
 
 auratrade:
+  security:
+    # Host and Origin guard (platform.web.LocalRequestGuard). Until there is authentication the app
+    # only serves this machine: Host must be loopback, and a browser Origin must be listed here.
+    local-guard:
+      enabled: true
+      allowed-origins: http://localhost:5173,http://localhost:8080
   llm:
     monthly-budget-usd: 50
     # Local-first: every tier runs on one Ollama model. HEAVY and LIGHT carry pretend Claude prices
