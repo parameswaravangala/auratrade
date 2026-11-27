@@ -14,9 +14,13 @@ import com.auratrade.llmgateway.AgentType;
 import com.auratrade.llmgateway.LlmGateway;
 import com.auratrade.llmgateway.SpendService;
 import com.auratrade.platform.web.LocalRequestGuard;
+import java.util.Arrays;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -38,9 +42,37 @@ class LocalRequestGuardMvcTest {
     gateway = mock(LlmGateway.class);
     mvc =
         MockMvcBuilders.standaloneSetup(new LlmDevController(gateway, mock(SpendService.class)))
-            .addFilters(
-                new LocalRequestGuard(Set.of("http://localhost:5173", "http://localhost:8080")))
+            .addFilters(new LocalRequestGuard(configuredOrigins()))
             .build();
+  }
+
+  /** The allowed origins exactly as shipped in application.yml, so the test covers the config. */
+  private static Set<String> configuredOrigins() {
+    var yaml = new YamlPropertiesFactoryBean();
+    yaml.setResources(new ClassPathResource("application.yml"));
+    String origins = yaml.getObject().getProperty("auratrade.security.local-guard.allowed-origins");
+    return Arrays.stream(origins.split(",")).map(String::trim).collect(Collectors.toSet());
+  }
+
+  @Test
+  void allowsUiOpenedAtLocalhostOr127OnEitherUiPort() throws Exception {
+    for (String origin :
+        new String[] {
+          "http://localhost:5173",
+          "http://127.0.0.1:5173",
+          "http://localhost:5174",
+          "http://127.0.0.1:5174",
+          "http://localhost:8080",
+          "http://127.0.0.1:8080"
+        }) {
+      mvc.perform(
+              post(ASK)
+                  .header("Host", origin.substring("http://".length()))
+                  .header("Origin", origin)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(JSON_BODY))
+          .andExpect(status().isOk());
+    }
   }
 
   @Test

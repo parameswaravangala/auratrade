@@ -24,9 +24,12 @@ auratrade:
   security:
     # Host and Origin guard (platform.web.LocalRequestGuard). Until there is authentication the app
     # only serves this machine: Host must be loopback, and a browser Origin must be listed here.
+    # On in every profile, prod included: fail closed until authentication exists (B-031, README).
+    # 5173 is the Vite UI, 5174 a second UI (for example another worktree), 8080 the backend.
     local-guard:
       enabled: true
-      allowed-origins: http://localhost:5173,http://localhost:8080
+      allowed-origins: >-
+        http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:8080,http://127.0.0.1:8080
   llm:
     monthly-budget-usd: 50
     # Local-first: every tier runs on one Ollama model. HEAVY and LIGHT carry pretend Claude prices
