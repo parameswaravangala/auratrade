@@ -5,6 +5,7 @@ import com.auratrade.marketdata.Candle;
 import com.auratrade.marketdata.CandleSeriesReader.Series;
 import com.auratrade.strategy.ConditionResult;
 import com.auratrade.strategy.DataRequirement;
+import com.auratrade.strategy.MarketRegime;
 import com.auratrade.strategy.Outcome;
 import com.auratrade.strategy.ParameterSchema;
 import com.auratrade.strategy.Parameters;
@@ -71,6 +72,7 @@ public final class MomentumBreakout implements Strategy {
           .decimal("targetR", "First target in R", "2", "3", "2")
           .integer("entryWindow", "Sessions a buy-stop stays valid", 1, 5, 3)
           .integer("maxHold", "Holding limit in sessions", 3, 15, 15)
+          .integer("regimeFilter", "Block entries when NIFTY 50 is bearish (1 on, 0 off)", 0, 1, 0)
           .lessOrEqual("rsiMin", "rsiMax")
           .build();
 
@@ -196,6 +198,9 @@ public final class MomentumBreakout implements Strategy {
             v -> v.signum() > 0,
             "> 0"));
 
+    if (p.integer("regimeFilter") == 1) {
+      all.add(MarketRegime.condition(context));
+    }
     boolean requiredPass =
         all.stream().filter(ConditionResult::required).allMatch(c -> c.outcome() == Outcome.PASS);
     Optional<TradePlan> plan =

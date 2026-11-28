@@ -41,6 +41,10 @@ class SelectionDevController {
         run.source(),
         run.approvedStrategies(),
         profile(run.profile()),
+        run.regime() == null
+            ? null
+            : new RegimeView(
+                run.regime().regime().name(), run.regime().score(), run.regime().evidence()),
         r.evaluated(),
         r.passing(),
         r.skipped(),
@@ -114,6 +118,7 @@ class SelectionDevController {
       String source,
       List<String> approvedStrategies,
       ProfileView scoringProfile,
+      RegimeView regime,
       int evaluated,
       int passing,
       Map<String, Integer> skipped,
@@ -121,6 +126,8 @@ class SelectionDevController {
       List<CandidateView> almostQualified) {}
 
   record ProfileView(String id, String name, String policy, Map<String, BigDecimal> weights) {}
+
+  record RegimeView(String regime, BigDecimal score, String evidence) {}
 
   record CandidateView(
       long instrumentId,
