@@ -25,7 +25,7 @@ import java.util.Optional;
  * <p>The six checks are the rules in plan section 3. Each is reported with its value, so a failure
  * is explained rather than just counted.
  */
-final class GateEvaluator {
+public final class GateEvaluator {
 
   static final int MIN_OOS_TRADES = 100;
   static final BigDecimal MIN_PROFIT_FACTOR = new BigDecimal("1.2");
@@ -38,8 +38,8 @@ final class GateEvaluator {
   private GateEvaluator() {}
 
   /** One parameter setting's full-period result, with its daily equity. */
-  record SettingResult(String id, List<Trade> trades, List<Day> days) {
-    SettingResult {
+  public record SettingResult(String id, List<Trade> trades, List<Day> days) {
+    public SettingResult {
       Objects.requireNonNull(id, "id");
       trades = List.copyOf(trades);
       days = List.copyOf(days);
@@ -52,7 +52,7 @@ final class GateEvaluator {
    * @param niftyOosCagr Nifty 50 buy and hold, annualised, over the same out-of-sample dates
    * @param defaultSettingId the spec-default setting, judged on drawdown
    */
-  record Input(
+  public record Input(
       String strategyRef,
       LocalDate oosStart,
       LocalDate end,
@@ -60,7 +60,7 @@ final class GateEvaluator {
       List<SettingResult> settings,
       String defaultSettingId,
       double niftyOosCagr) {
-    Input {
+    public Input {
       Objects.requireNonNull(strategyRef, "strategyRef");
       Objects.requireNonNull(oosStart, "oosStart");
       Objects.requireNonNull(end, "end");
@@ -72,9 +72,9 @@ final class GateEvaluator {
     }
   }
 
-  record Check(String name, boolean passed, String value, String threshold) {}
+  public record Check(String name, boolean passed, String value, String threshold) {}
 
-  record Metrics(
+  public record Metrics(
       int trades,
       BigDecimal winRate,
       BigDecimal expectancy,
@@ -85,7 +85,7 @@ final class GateEvaluator {
    * @param chosenSettingId the setting picked on the period before {@code oosStart}
    * @param settingsBeatingNifty settings whose out-of-sample CAGR is above Nifty's
    */
-  record Report(
+  public record Report(
       String strategyRef,
       boolean passed,
       List<Check> checks,
@@ -96,7 +96,7 @@ final class GateEvaluator {
       int settingCount,
       BigDecimal defaultMaxDrawdown) {}
 
-  static Report evaluate(Input in) {
+  public static Report evaluate(Input in) {
     SettingResult defaults =
         in.settings().stream()
             .filter(s -> s.id().equals(in.defaultSettingId()))
