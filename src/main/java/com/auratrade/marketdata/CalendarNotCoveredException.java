@@ -6,6 +6,8 @@ package com.auratrade.marketdata;
  */
 public class CalendarNotCoveredException extends IllegalStateException {
 
+  private final int year;
+
   public CalendarNotCoveredException(int year) {
     super(
         "No trading calendar loaded for "
@@ -13,5 +15,11 @@ public class CalendarNotCoveredException extends IllegalStateException {
             + ". Add a COVERS,"
             + year
             + " row and the holidays from the official NSE holiday list to the calendar file.");
+    this.year = year;
+  }
+
+  /** The year the calendar does not cover. */
+  public int year() {
+    return year;
   }
 }

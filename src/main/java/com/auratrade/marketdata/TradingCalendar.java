@@ -30,12 +30,54 @@ public final class TradingCalendar {
   private final Set<LocalDate> holidays;
   private final Set<LocalDate> specialSessions;
   private final Set<Integer> coveredYears;
+  private final java.util.Map<LocalDate, String> names;
+
+  /** A holiday or special session with the description from the calendar file. */
+  public record NamedDay(LocalDate date, String name) {}
 
   public TradingCalendar(
       Set<LocalDate> holidays, Set<LocalDate> specialSessions, Set<Integer> coveredYears) {
+    this(holidays, specialSessions, coveredYears, java.util.Map.of());
+  }
+
+  /**
+   * @param names descriptions of holidays and special sessions, by date (may be partial)
+   */
+  public TradingCalendar(
+      Set<LocalDate> holidays,
+      Set<LocalDate> specialSessions,
+      Set<Integer> coveredYears,
+      java.util.Map<LocalDate, String> names) {
     this.holidays = Set.copyOf(holidays);
     this.specialSessions = Set.copyOf(specialSessions);
     this.coveredYears = Set.copyOf(coveredYears);
+    this.names = java.util.Map.copyOf(names);
+  }
+
+  /** Covered years, ascending. */
+  public List<Integer> coveredYears() {
+    return coveredYears.stream().sorted().toList();
+  }
+
+  /** Weekday closures in a covered year, by date. */
+  public List<NamedDay> holidaysIn(int year) {
+    return named(holidays, year);
+  }
+
+  /** Sessions on days that would otherwise be closed, or extra sessions, in a covered year. */
+  public List<NamedDay> specialSessionsIn(int year) {
+    return named(specialSessions, year);
+  }
+
+  private List<NamedDay> named(Set<LocalDate> days, int year) {
+    if (!covers(year)) {
+      throw new CalendarNotCoveredException(year);
+    }
+    return days.stream()
+        .filter(d -> d.getYear() == year)
+        .sorted()
+        .map(d -> new NamedDay(d, names.getOrDefault(d, "")))
+        .toList();
   }
 
   public boolean covers(int year) {
@@ -113,6 +155,7 @@ public final class TradingCalendar {
     Set<LocalDate> holidays = new HashSet<>();
     Set<LocalDate> specials = new HashSet<>();
     Set<Integer> covered = new HashSet<>();
+    java.util.Map<LocalDate, String> names = new java.util.HashMap<>();
 
     BufferedReader in = new BufferedReader(reader);
     String line;
@@ -130,6 +173,9 @@ public final class TradingCalendar {
           throw new IllegalArgumentException("expected TYPE,VALUE[,description]");
         }
         String value = parts[1].trim();
+        if (parts.length == 3 && (type.equals("HOLIDAY") || type.equals("SPECIAL"))) {
+          names.put(LocalDate.parse(value), parts[2].trim());
+        }
         switch (type) {
           case "COVERS" -> covered.add(Integer.parseInt(value));
           case "HOLIDAY" -> holidays.add(LocalDate.parse(value));
@@ -151,7 +197,7 @@ public final class TradingCalendar {
                 + " row; a partly filled year is not allowed");
       }
     }
-    return new TradingCalendar(holidays, specials, covered);
+    return new TradingCalendar(holidays, specials, covered, names);
   }
 
   private static List<LocalDate> concat(Set<LocalDate> a, Set<LocalDate> b) {
