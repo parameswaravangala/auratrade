@@ -9,7 +9,9 @@ import {
   DecideOutcomes,
   CalendarCoverage,
   Freshness,
+  GateView,
   Health,
+  SelectionView,
   IngestionResult,
   JobRuns,
   JobTriggered,
@@ -363,5 +365,30 @@ export function useCalendarCoverage() {
     queryFn: ({ signal }) => getJson("/api/v1/calendar/coverage", CalendarCoverage, { signal }),
     staleTime: 60 * 60_000,
     retry: false,
+  });
+}
+
+/** The stock shortlist from the strategies that have passed their gate (plan P1, ADR 0044). */
+export function useSelection(limit = 10) {
+  return useQuery({
+    queryKey: ["selection", limit] as const,
+    queryFn: ({ signal }) => getJson(`/dev/selection?limit=${limit}`, SelectionView, { signal }),
+    refetchInterval: 5 * 60_000,
+    retry: false,
+  });
+}
+
+/**
+ * A strategy's gate report (plan P2, ADR 0045). It replays the history, which takes minutes, so it
+ * runs only when asked, never on page load.
+ */
+export function useGate(strategyId: string | null) {
+  return useQuery({
+    queryKey: ["gate", strategyId] as const,
+    queryFn: ({ signal }) =>
+      getJson(`/dev/strategies/${encodeURIComponent(strategyId ?? "")}/gate`, GateView, { signal }),
+    enabled: false,
+    retry: false,
+    staleTime: Infinity,
   });
 }
