@@ -1,7 +1,10 @@
 package com.auratrade.selection;
 
 import com.auratrade.strategy.StrategyRegistry;
+import com.auratrade.strategy.builtin.High52wMomentum;
 import com.auratrade.strategy.builtin.MomentumBreakout;
+import com.auratrade.strategy.builtin.Pullback20Ema;
+import com.auratrade.strategy.builtin.RelativeStrength;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +18,11 @@ class SelectionConfig {
 
   @Bean
   StrategyRegistry strategyRegistry() {
-    return new StrategyRegistry(List.of(new MomentumBreakout()));
+    return new StrategyRegistry(
+        List.of(
+            new MomentumBreakout(),
+            new Pullback20Ema(),
+            new RelativeStrength(),
+            new High52wMomentum()));
   }
 }

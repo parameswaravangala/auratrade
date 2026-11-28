@@ -140,15 +140,9 @@ public class GateRunService {
     Map<SignalKey, Map<LocalDate, List<PlanPortfolioSimulator.Signal>>> byKey =
         new LinkedHashMap<>();
     for (SignalKey key : grid.stream().map(GateGrids::signalKey).distinct().toList()) {
-      StrategyVersion version =
-          StrategyVersion.of(
-              strategy,
-              "1.0.0",
-              Map.of(
-                  "resistanceLookback",
-                  BigDecimal.valueOf(key.resistanceLookback()),
-                  "minVolumeRatio",
-                  new BigDecimal(key.minVolumeRatio())));
+      Map<String, BigDecimal> values = new java.util.TreeMap<>();
+      key.params().forEach((name, text) -> values.put(name, new BigDecimal(text)));
+      StrategyVersion version = StrategyVersion.of(strategy, "1.0.0", values);
       List<PlanPortfolioSimulator.Signal> all = Collections.synchronizedList(new ArrayList<>());
       parallelOverShares(
           source,
