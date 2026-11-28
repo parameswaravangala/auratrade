@@ -59,7 +59,7 @@ public final class Selection {
       List<Candidate> almostQualified,
       int passing) {
     public Result {
-      skipped = Map.copyOf(skipped);
+      skipped = java.util.Collections.unmodifiableSortedMap(new TreeMap<>(skipped));
       shortlist = List.copyOf(shortlist);
       almostQualified = List.copyOf(almostQualified);
     }
