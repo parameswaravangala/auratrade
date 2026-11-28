@@ -109,6 +109,9 @@ final class StrategyReplay {
             benchmark.instrumentId(),
             benchmark.symbol(),
             benchmark.name(),
-            c.subList(Math.max(0, i - lookback + 1), i + 1)));
+            c.subList(
+                Math.max(
+                    0, i - Math.max(lookback, com.auratrade.strategy.MarketRegime.MIN_HISTORY) + 1),
+                i + 1)));
   }
 }

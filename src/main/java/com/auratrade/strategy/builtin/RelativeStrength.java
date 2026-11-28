@@ -5,6 +5,7 @@ import com.auratrade.marketdata.Candle;
 import com.auratrade.marketdata.CandleSeriesReader.Series;
 import com.auratrade.strategy.ConditionResult;
 import com.auratrade.strategy.DataRequirement;
+import com.auratrade.strategy.MarketRegime;
 import com.auratrade.strategy.Outcome;
 import com.auratrade.strategy.ParameterSchema;
 import com.auratrade.strategy.Parameters;
@@ -61,6 +62,7 @@ public final class RelativeStrength implements Strategy {
           .decimal("targetR", "First target in R", "2", "3", "2")
           .integer("entryWindow", "Sessions a buy-stop stays valid", 1, 5, 3)
           .integer("maxHold", "Holding limit in sessions", 5, 20, 20)
+          .integer("regimeFilter", "Block entries when NIFTY 50 is bearish (1 on, 0 off)", 0, 1, 0)
           .build();
 
   private static final int EMA_FAST = 20;
@@ -189,6 +191,9 @@ public final class RelativeStrength implements Strategy {
             false,
             "not evaluated"));
 
+    if (p.integer("regimeFilter") == 1) {
+      conditions.add(MarketRegime.condition(context));
+    }
     boolean requiredPass =
         conditions.stream().filter(c -> c.required()).allMatch(c -> c.outcome() == Outcome.PASS);
     Optional<TradePlan> plan =

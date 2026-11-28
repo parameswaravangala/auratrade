@@ -22,11 +22,11 @@ class GateRunServiceTest {
   @Test
   void momentumGridIsWithinTheEighteenSettingLimitAndContainsTheSpecDefault() {
     List<Setting> grid = GateGrids.forStrategy("momentum-breakout");
-    assertThat(grid).hasSize(8).hasSizeLessThanOrEqualTo(18);
+    assertThat(grid).hasSize(16).hasSizeLessThanOrEqualTo(18);
     assertThat(grid)
         .extracting(Setting::id)
         .contains(GateGrids.defaultSettingId("momentum-breakout"));
-    assertThat(grid.stream().map(GateGrids::signalKey).distinct()).hasSize(4);
+    assertThat(grid.stream().map(GateGrids::signalKey).distinct()).hasSize(8);
   }
 
   @Test

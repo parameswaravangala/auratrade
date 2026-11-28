@@ -37,6 +37,7 @@ public class StockSelectionService {
       String source,
       List<String> approvedStrategies,
       ScoringProfile profile,
+      com.auratrade.strategy.MarketRegime.Snapshot regime,
       Selection.Result result) {}
 
   private static final int MIN_HISTORY = 21;
@@ -59,7 +60,7 @@ public class StockSelectionService {
     this.provider = provider;
     this.screener = screener;
     this.registry = registry;
-    this.versions = registry.all().stream().map(s -> StrategyVersion.defaults(s, "1.0.0")).toList();
+    this.versions = registry.all().stream().map(s -> StrategyVersion.defaults(s, "1.1.0")).toList();
   }
 
   /** Every registered strategy at its default version, in registry order. */
@@ -77,13 +78,14 @@ public class StockSelectionService {
             .mapToInt(v -> strategy(v).lookback(v.parameters()))
             .max()
             .orElse(MIN_HISTORY);
-    int history = Math.max(lookback, MIN_HISTORY);
+    int history =
+        Math.max(lookback, Math.max(MIN_HISTORY, com.auratrade.strategy.MarketRegime.MIN_HISTORY));
 
-    Optional<Series> benchmark = Optional.empty();
+    Optional<Series> benchmark =
+        reader.index(source, Interval.DAY, screener.benchmark(), date, history);
     boolean needsBenchmark =
         versions.stream().anyMatch(v -> strategy(v).requires().contains(DataRequirement.BENCHMARK));
     if (needsBenchmark) {
-      benchmark = reader.index(source, Interval.DAY, screener.benchmark(), date, history);
       if (benchmark.isEmpty() || !date.equals(benchmark.get().lastDate())) {
         throw new IllegalStateException(
             screener.benchmark()
@@ -93,6 +95,8 @@ public class StockSelectionService {
       }
     }
     StrategyContext context = new StrategyContext(date, benchmark);
+    com.auratrade.strategy.MarketRegime.Snapshot regime =
+        com.auratrade.strategy.MarketRegime.snapshot(context).orElse(null);
 
     List<Selection.ShareEvaluations> shares = new ArrayList<>();
     Map<String, Integer> skipped = new TreeMap<>();
@@ -121,6 +125,7 @@ public class StockSelectionService {
         source,
         List.copyOf(approved),
         ScoringProfile.BALANCED_SWING,
+        regime,
         Selection.rank(shares, limit, skipped, approved, ScoringProfile.BALANCED_SWING));
   }
 

@@ -5,6 +5,7 @@ import com.auratrade.marketdata.Candle;
 import com.auratrade.marketdata.CandleSeriesReader.Series;
 import com.auratrade.strategy.ConditionResult;
 import com.auratrade.strategy.DataRequirement;
+import com.auratrade.strategy.MarketRegime;
 import com.auratrade.strategy.Outcome;
 import com.auratrade.strategy.ParameterSchema;
 import com.auratrade.strategy.Parameters;
@@ -72,6 +73,7 @@ public final class Pullback20Ema implements Strategy {
           .decimal("targetR", "First target in R", "2", "3", "2")
           .integer("entryWindow", "Sessions a buy-stop stays valid", 1, 5, 3)
           .integer("maxHold", "Holding limit in sessions", 3, 12, 12)
+          .integer("regimeFilter", "Block entries when NIFTY 50 is bearish (1 on, 0 off)", 0, 1, 0)
           .lessOrEqual("rsiMin", "rsiMax")
           .build();
 
@@ -200,6 +202,9 @@ public final class Pullback20Ema implements Strategy {
             v -> v.compareTo(maxStop) <= 0,
             "<= " + maxStop.toPlainString()));
 
+    if (p.integer("regimeFilter") == 1) {
+      conditions.add(MarketRegime.condition(context));
+    }
     boolean requiredPass = conditions.stream().allMatch(c -> c.outcome() == Outcome.PASS);
     Optional<TradePlan> plan =
         requiredPass ? Optional.of(plan(low, trigger, stop, p)) : Optional.empty();

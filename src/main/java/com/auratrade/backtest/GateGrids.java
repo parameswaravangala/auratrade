@@ -29,6 +29,12 @@ final class GateGrids {
     }
   }
 
+  /**
+   * The regime filter (ADR 0048): off and on are both in every grid, so the filter is tested, not
+   * assumed.
+   */
+  static final String REGIME = "regimeFilter";
+
   static final String MOMENTUM_BREAKOUT = "momentum-breakout";
   static final String PULLBACK = "pullback-20ema";
   static final String RELATIVE_STRENGTH = "relative-strength";
@@ -67,10 +73,10 @@ final class GateGrids {
   /** The default setting: the strategy's own default parameters, which must be in the grid. */
   static String defaultSettingId(String strategyId) {
     return switch (strategyId) {
-      case MOMENTUM_BREAKOUT -> "resistanceLookback=20,minVolumeRatio=1.5,hold=15";
-      case PULLBACK -> "pullbackTolerance=0.02,hold=12";
-      case RELATIVE_STRENGTH -> "trailAtrMultiple=2,hold=20";
-      case HIGH_52W -> "nearHighTolerance=0.05,hold=20";
+      case MOMENTUM_BREAKOUT -> "resistanceLookback=20,minVolumeRatio=1.5,regimeFilter=0,hold=15";
+      case PULLBACK -> "pullbackTolerance=0.02,regimeFilter=0,hold=12";
+      case RELATIVE_STRENGTH -> "trailAtrMultiple=2,regimeFilter=0,hold=20";
+      case HIGH_52W -> "nearHighTolerance=0.05,regimeFilter=0,hold=20";
       default ->
           throw new IllegalArgumentException("no gate grid declared for '" + strategyId + "'");
     };
@@ -82,7 +88,17 @@ final class GateGrids {
 
   /** Every combination of the listed values, each with every holding limit. */
   private static List<Setting> grid(
-      List<String> names, List<List<String>> combos, List<Integer> holds) {
+      List<String> strategyNames, List<List<String>> strategyCombos, List<Integer> holds) {
+    List<String> names = new java.util.ArrayList<>(strategyNames);
+    names.add(REGIME);
+    List<List<String>> combos = new java.util.ArrayList<>();
+    for (List<String> c : strategyCombos) {
+      for (String regime : List.of("0", "1")) {
+        List<String> row = new java.util.ArrayList<>(c);
+        row.add(regime);
+        combos.add(row);
+      }
+    }
     List<Setting> out = new java.util.ArrayList<>();
     for (List<String> values : combos) {
       Map<String, String> params = new TreeMap<>();
