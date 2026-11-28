@@ -54,8 +54,8 @@ export const NAV: NavItem[] = [
   {
     to: "/calendar",
     label: "Data calendar",
-    subtitle: "coverage and validation",
+    subtitle: "coverage and freshness",
     icon: CalendarRange,
-    live: false,
+    live: true,
   },
 ];

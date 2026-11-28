@@ -9,6 +9,7 @@ import { z } from "zod";
 import { Shell } from "@/components/Shell";
 import { ErrorState } from "@/components/States";
 import { About } from "@/features/about/About";
+import { DataCalendar } from "@/features/calendar/DataCalendar";
 import { CommandCenter } from "@/features/command-center/CommandCenter";
 import { ComingSoon } from "@/features/coming/ComingSoon";
 import { Dossier } from "@/features/dossier/Dossier";
@@ -74,7 +75,13 @@ const portfolioRoute = createRoute({
   component: PaperPortfolio,
 });
 
-const coming = (path: "/research" | "/agents" | "/calendar") =>
+const calendarRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/calendar",
+  component: DataCalendar,
+});
+
+const coming = (path: "/research" | "/agents") =>
   createRoute({ getParentRoute: () => rootRoute, path, component: () => <ComingSoon path={path} /> });
 
 const aboutRoute = createRoute({ getParentRoute: () => rootRoute, path: "/about", component: About });
@@ -87,7 +94,7 @@ const routeTree = rootRoute.addChildren([
   approvalsRoute,
   portfolioRoute,
   coming("/agents"),
-  coming("/calendar"),
+  calendarRoute,
   aboutRoute,
 ]);
 
