@@ -39,6 +39,7 @@ class SelectionDevController {
     return new View(
         run.asOf(),
         run.source(),
+        run.approvedStrategies(),
         r.evaluated(),
         r.passing(),
         r.skipped(),
@@ -105,6 +106,7 @@ class SelectionDevController {
   record View(
       LocalDate asOf,
       String source,
+      List<String> approvedStrategies,
       int evaluated,
       int passing,
       Map<String, Integer> skipped,
