@@ -31,7 +31,7 @@ class GateRunServiceTest {
 
   @Test
   void anUndeclaredStrategyHasNoGrid() {
-    assertThatThrownBy(() -> GateGrids.forStrategy("relative-strength"))
+    assertThatThrownBy(() -> GateGrids.forStrategy("no-such-strategy"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("no gate grid");
   }
