@@ -17,7 +17,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -30,7 +32,8 @@ import org.springframework.stereotype.Service;
 public class StockSelectionService {
 
   /** The result with the session it was computed for and the source that supplied the candles. */
-  public record Run(LocalDate asOf, String source, Selection.Result result) {}
+  public record Run(
+      LocalDate asOf, String source, List<String> approvedStrategies, Selection.Result result) {}
 
   private static final int MIN_HISTORY = 21;
 
@@ -39,12 +42,15 @@ public class StockSelectionService {
   private final ScreenerService screener;
   private final List<StrategyVersion> versions;
   private final StrategyRegistry registry;
+  private final Set<String> approved;
 
   public StockSelectionService(
       CandleSeriesReader reader,
       MarketDataProvider provider,
       ScreenerService screener,
-      StrategyRegistry registry) {
+      StrategyRegistry registry,
+      @Value("${auratrade.selection.approved-strategies:}") String approvedStrategies) {
+    this.approved = parse(approvedStrategies);
     this.reader = reader;
     this.provider = provider;
     this.screener = screener;
@@ -106,7 +112,19 @@ public class StockSelectionService {
               new Selection.ShareEvaluations(
                   share.instrumentId(), share.symbol(), share.name(), evaluations));
         });
-    return new Run(date, source, Selection.rank(shares, limit, skipped));
+    return new Run(
+        date, source, List.copyOf(approved), Selection.rank(shares, limit, skipped, approved));
+  }
+
+  /** Comma-separated strategy ids whose gate has passed (ADR 0042). Blank means none. */
+  static Set<String> parse(String csv) {
+    if (csv == null || csv.isBlank()) {
+      return Set.of();
+    }
+    return java.util.Arrays.stream(csv.split(","))
+        .map(String::trim)
+        .filter(s -> !s.isEmpty())
+        .collect(java.util.stream.Collectors.toUnmodifiableSet());
   }
 
   private Strategy strategy(StrategyVersion v) {
