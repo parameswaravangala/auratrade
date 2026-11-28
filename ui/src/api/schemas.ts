@@ -481,6 +481,7 @@ const SelectionCandidate = z.object({
   symbol: z.string(),
   name: z.string(),
   bestScore: z.number(),
+  combinedScore: z.number(),
   passedStrategies: z.array(z.string()),
   evaluations: z.array(SelectionEvaluation),
 });
@@ -488,6 +489,12 @@ export const SelectionView = z.object({
   asOf: isoDate,
   source: z.string(),
   approvedStrategies: z.array(z.string()),
+  scoringProfile: z.object({
+    id: z.string(),
+    name: z.string(),
+    policy: z.enum(["STRICT", "AUTO_NORMALIZED"]),
+    weights: z.record(z.string(), z.number()),
+  }),
   evaluated: z.number().int(),
   passing: z.number().int(),
   skipped: z.record(z.string(), z.number().int()),

@@ -73,6 +73,13 @@ function Summary({ data }: { data: SelectionView }) {
         <dd className="m-0 num text-tx" aria-label="passing">
           {data.passing}
         </dd>
+        <dt className="text-tx3">Scoring profile</dt>
+        <dd className="m-0 text-tx" aria-label="scoring profile">
+          {data.scoringProfile.name} · {data.scoringProfile.policy.replace("_", " ").toLowerCase()} ·{" "}
+          {Object.entries(data.scoringProfile.weights)
+            .map(([strategy, weight]) => `${strategy} ${weight}`)
+            .join(", ")}
+        </dd>
         <dt className="text-tx3">Approved strategies</dt>
         <dd className="m-0 text-tx" aria-label="approved strategies">
           {approved.length ? approved.join(", ") : "none yet"}
@@ -126,7 +133,9 @@ function CandidateList({
               <span className="num text-tx3">{i + 1}.</span> <span className="num text-tx">{c.symbol}</span>{" "}
               <span className="text-tx3">{c.name}</span>
             </span>
-            <span className="num">{c.passedStrategies.length ? c.bestScore.toFixed(1) : "–"}</span>
+            <span className="num" title="combined score">
+              {c.passedStrategies.length ? c.combinedScore.toFixed(1) : "–"}
+            </span>
           </button>
         </li>
       ))}

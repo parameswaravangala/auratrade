@@ -10,6 +10,7 @@ const CANDIDATE = {
   symbol: "ACME",
   name: "Acme Ltd",
   bestScore: 75.3,
+  combinedScore: 44.4,
   passedStrategies: ["momentum-breakout@1.0.0"],
   evaluations: [
     {
@@ -55,6 +56,7 @@ const NEAR = {
   symbol: "NEARCO",
   name: "Nearco Ltd",
   bestScore: 0,
+  combinedScore: 0,
   passedStrategies: [],
   evaluations: [
     {
@@ -82,6 +84,17 @@ function view(approved: string[], shortlist: unknown[], almost: unknown[]) {
     asOf: "2026-11-27",
     source: "UPSTOX",
     approvedStrategies: approved,
+    scoringProfile: {
+      id: "balanced-swing",
+      name: "Balanced Swing",
+      policy: "AUTO_NORMALIZED",
+      weights: {
+        "momentum-breakout": 25,
+        "pullback-20ema": 20,
+        "relative-strength": 20,
+        "high-52w-momentum": 15,
+      },
+    },
     evaluated: 1496,
     passing: shortlist.length,
     skipped: { ILLIQUID: 826, SHORT_HISTORY: 94 },
