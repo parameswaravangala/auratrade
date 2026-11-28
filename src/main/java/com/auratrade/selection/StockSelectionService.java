@@ -33,7 +33,11 @@ public class StockSelectionService {
 
   /** The result with the session it was computed for and the source that supplied the candles. */
   public record Run(
-      LocalDate asOf, String source, List<String> approvedStrategies, Selection.Result result) {}
+      LocalDate asOf,
+      String source,
+      List<String> approvedStrategies,
+      ScoringProfile profile,
+      Selection.Result result) {}
 
   private static final int MIN_HISTORY = 21;
 
@@ -113,7 +117,11 @@ public class StockSelectionService {
                   share.instrumentId(), share.symbol(), share.name(), evaluations));
         });
     return new Run(
-        date, source, List.copyOf(approved), Selection.rank(shares, limit, skipped, approved));
+        date,
+        source,
+        List.copyOf(approved),
+        ScoringProfile.BALANCED_SWING,
+        Selection.rank(shares, limit, skipped, approved, ScoringProfile.BALANCED_SWING));
   }
 
   /** Comma-separated strategy ids whose gate has passed (ADR 0042). Blank means none. */

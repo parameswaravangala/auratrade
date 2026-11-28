@@ -43,6 +43,7 @@ public final class Selection {
       String symbol,
       String name,
       BigDecimal bestScore,
+      BigDecimal combinedScore,
       List<String> passedStrategies,
       List<StrategyEvaluation> evaluations) {}
 
@@ -75,6 +76,19 @@ public final class Selection {
       int limit,
       Map<String, Integer> skipped,
       Set<String> approvedStrategies) {
+    return rank(shares, limit, skipped, approvedStrategies, null);
+  }
+
+  /**
+   * Ranks by the profile's combined score, or by the best single score when {@code profile} is
+   * null.
+   */
+  public static Result rank(
+      List<ShareEvaluations> shares,
+      int limit,
+      Map<String, Integer> skipped,
+      Set<String> approvedStrategies,
+      ScoringProfile profile) {
     if (limit < 1) {
       throw new IllegalArgumentException("limit must be at least 1");
     }
@@ -90,12 +104,19 @@ public final class Selection {
       if (!passed.isEmpty()) {
         BigDecimal best =
             passed.stream().map(StrategyEvaluation::score).max(BigDecimal::compareTo).orElseThrow();
+        Map<String, BigDecimal> bestByStrategy = new java.util.HashMap<>();
+        for (StrategyEvaluation e : passed) {
+          bestByStrategy.merge(strategyId(e), e.score(), BigDecimal::max);
+        }
+        BigDecimal combined =
+            profile == null ? best : profile.combined(bestByStrategy, approvedStrategies);
         passing.add(
             new Candidate(
                 s.instrumentId(),
                 s.symbol(),
                 s.name(),
                 best,
+                combined,
                 passed.stream().map(StrategyEvaluation::strategyRef).toList(),
                 s.evaluations()));
       } else if (isAlmost(s.evaluations())) {
@@ -105,12 +126,13 @@ public final class Selection {
                 s.symbol(),
                 s.name(),
                 BigDecimal.ZERO,
+                BigDecimal.ZERO,
                 List.of(),
                 s.evaluations()));
       }
     }
     Comparator<Candidate> order =
-        Comparator.comparing(Candidate::bestScore).reversed().thenComparing(Candidate::symbol);
+        Comparator.comparing(Candidate::combinedScore).reversed().thenComparing(Candidate::symbol);
     passing.sort(order);
     almost.sort(Comparator.comparing(Candidate::symbol));
     return new Result(

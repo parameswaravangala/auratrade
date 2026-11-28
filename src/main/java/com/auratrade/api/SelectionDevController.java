@@ -40,6 +40,7 @@ class SelectionDevController {
         run.asOf(),
         run.source(),
         run.approvedStrategies(),
+        profile(run.profile()),
         r.evaluated(),
         r.passing(),
         r.skipped(),
@@ -57,12 +58,17 @@ class SelectionDevController {
     return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
   }
 
+  private static ProfileView profile(com.auratrade.selection.ScoringProfile p) {
+    return new ProfileView(p.id(), p.name(), p.policy().name(), p.weights());
+  }
+
   private static CandidateView candle(Selection.Candidate c) {
     return new CandidateView(
         c.instrumentId(),
         c.symbol(),
         c.name(),
         c.bestScore(),
+        c.combinedScore(),
         c.passedStrategies(),
         c.evaluations().stream().map(SelectionDevController::evaluation).toList());
   }
@@ -107,17 +113,21 @@ class SelectionDevController {
       LocalDate asOf,
       String source,
       List<String> approvedStrategies,
+      ProfileView scoringProfile,
       int evaluated,
       int passing,
       Map<String, Integer> skipped,
       List<CandidateView> shortlist,
       List<CandidateView> almostQualified) {}
 
+  record ProfileView(String id, String name, String policy, Map<String, BigDecimal> weights) {}
+
   record CandidateView(
       long instrumentId,
       String symbol,
       String name,
       BigDecimal bestScore,
+      BigDecimal combinedScore,
       List<String> passedStrategies,
       List<EvaluationView> evaluations) {}
 
