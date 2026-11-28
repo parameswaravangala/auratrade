@@ -84,6 +84,7 @@ function view(approved: string[], shortlist: unknown[], almost: unknown[]) {
     asOf: "2026-11-27",
     source: "UPSTOX",
     approvedStrategies: approved,
+    regime: { regime: "SIDEWAYS", score: 0.5, evidence: "NIFTY close 100" },
     scoringProfile: {
       id: "balanced-swing",
       name: "Balanced Swing",
@@ -128,6 +129,7 @@ describe("stock scanner", () => {
     const list = await screen.findByRole("list", { name: "candidates" });
     expect(within(list).getByText("ACME")).toBeInTheDocument();
     expect(screen.getByLabelText("approved strategies")).toHaveTextContent("momentum-breakout");
+    expect(screen.getByLabelText("market regime")).toHaveTextContent("sideways · NIFTY close 100");
 
     await user.click(within(list).getByRole("button", { name: /ACME/ }));
     const detail = screen.getByRole("region", { name: "ACME · every strategy" });
