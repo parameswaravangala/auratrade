@@ -142,7 +142,7 @@ public class GateRunService {
     for (SignalKey key : grid.stream().map(GateGrids::signalKey).distinct().toList()) {
       Map<String, BigDecimal> values = new java.util.TreeMap<>();
       key.params().forEach((name, text) -> values.put(name, new BigDecimal(text)));
-      StrategyVersion version = StrategyVersion.of(strategy, "1.0.0", values);
+      StrategyVersion version = StrategyVersion.of(strategy, "1.1.0", values);
       List<PlanPortfolioSimulator.Signal> all = Collections.synchronizedList(new ArrayList<>());
       parallelOverShares(
           source,
@@ -193,7 +193,7 @@ public class GateRunService {
 
     var input =
         new GateEvaluator.Input(
-            strategy.id() + "@1.0.0",
+            strategy.id() + "@1.1.0",
             r.oosStart(),
             to,
             CAPITAL,

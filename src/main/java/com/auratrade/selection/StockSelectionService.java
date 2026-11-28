@@ -60,7 +60,7 @@ public class StockSelectionService {
     this.provider = provider;
     this.screener = screener;
     this.registry = registry;
-    this.versions = registry.all().stream().map(s -> StrategyVersion.defaults(s, "1.0.0")).toList();
+    this.versions = registry.all().stream().map(s -> StrategyVersion.defaults(s, "1.1.0")).toList();
   }
 
   /** Every registered strategy at its default version, in registry order. */
