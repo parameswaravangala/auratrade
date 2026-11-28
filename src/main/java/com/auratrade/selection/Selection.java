@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -59,14 +60,21 @@ public final class Selection {
       List<Candidate> almostQualified,
       int passing) {
     public Result {
-      skipped = Map.copyOf(skipped);
+      skipped = java.util.Collections.unmodifiableSortedMap(new TreeMap<>(skipped));
       shortlist = List.copyOf(shortlist);
       almostQualified = List.copyOf(almostQualified);
     }
   }
 
+  /**
+   * Ranks the shares. Only strategies whose id is in {@code approvedStrategies} count: a strategy
+   * whose gate has not passed (ADR 0042) never reaches the shortlist, even when it passes on a day.
+   */
   public static Result rank(
-      List<ShareEvaluations> shares, int limit, Map<String, Integer> skipped) {
+      List<ShareEvaluations> shares,
+      int limit,
+      Map<String, Integer> skipped,
+      Set<String> approvedStrategies) {
     if (limit < 1) {
       throw new IllegalArgumentException("limit must be at least 1");
     }
@@ -75,7 +83,10 @@ public final class Selection {
     List<Candidate> almost = new ArrayList<>();
     for (ShareEvaluations s : shares) {
       List<StrategyEvaluation> passed =
-          s.evaluations().stream().filter(e -> e.status() == EvaluationStatus.PASSED).toList();
+          s.evaluations().stream()
+              .filter(e -> e.status() == EvaluationStatus.PASSED)
+              .filter(e -> approvedStrategies.contains(strategyId(e)))
+              .toList();
       if (!passed.isEmpty()) {
         BigDecimal best =
             passed.stream().map(StrategyEvaluation::score).max(BigDecimal::compareTo).orElseThrow();
@@ -108,6 +119,12 @@ public final class Selection {
         passing.stream().limit(cap).toList(),
         almost.stream().limit(cap).toList(),
         passing.size());
+  }
+
+  /** The strategy id of a result, the part of its reference before the version. */
+  static String strategyId(StrategyEvaluation e) {
+    int at = e.strategyRef().indexOf('@');
+    return at < 0 ? e.strategyRef() : e.strategyRef().substring(0, at);
   }
 
   /** True when some strategy failed exactly one required condition and left none unknown. */

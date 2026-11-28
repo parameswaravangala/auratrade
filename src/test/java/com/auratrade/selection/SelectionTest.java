@@ -16,11 +16,13 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class SelectionTest {
 
   private static final LocalDate DAY = LocalDate.of(2026, 11, 26);
+  private static final java.util.Set<String> APPROVED = java.util.Set.of("a", "b");
 
   private static TradePlan plan() {
     return new TradePlan(
@@ -89,7 +91,8 @@ class SelectionTest {
                 share(2, "AAA", passed("a@1.0.0", "80")),
                 share(3, "CCC", passed("a@1.0.0", "60"), passed("b@1.0.0", "90"))),
             10,
-            Map.of());
+            Map.of(),
+            APPROVED);
     assertThat(result.shortlist())
         .extracting(Selection.Candidate::symbol)
         .containsExactly("CCC", "AAA", "BBB");
@@ -104,10 +107,11 @@ class SelectionTest {
     for (int i = 0; i < 15; i++) {
       many.add(share(i, "S" + String.format("%02d", i), passed("a@1.0.0", "50")));
     }
-    assertThat(Selection.rank(many, 50, Map.of()).shortlist()).hasSize(Selection.MAX_SHORTLIST);
-    assertThat(Selection.rank(many, 3, Map.of()).shortlist()).hasSize(3);
-    assertThat(Selection.rank(many, 3, Map.of()).passing()).isEqualTo(15);
-    assertThatThrownBy(() -> Selection.rank(many, 0, Map.of()))
+    assertThat(Selection.rank(many, 50, Map.of(), APPROVED).shortlist())
+        .hasSize(Selection.MAX_SHORTLIST);
+    assertThat(Selection.rank(many, 3, Map.of(), APPROVED).shortlist()).hasSize(3);
+    assertThat(Selection.rank(many, 3, Map.of(), APPROVED).passing()).isEqualTo(15);
+    assertThatThrownBy(() -> Selection.rank(many, 0, Map.of(), APPROVED))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -120,7 +124,8 @@ class SelectionTest {
                 share(2, "FAR", failed("a@1.0.0")),
                 share(3, "PASS", passed("a@1.0.0", "70"))),
             10,
-            Map.of());
+            Map.of(),
+            APPROVED);
     assertThat(result.almostQualified())
         .extracting(Selection.Candidate::symbol)
         .containsExactly("NEAR");
@@ -132,7 +137,10 @@ class SelectionTest {
   void everyStrategyResultIsKeptOnTheCandidate() {
     var result =
         Selection.rank(
-            List.of(share(1, "AAA", passed("a@1.0.0", "70"), failed("b@1.0.0"))), 10, Map.of());
+            List.of(share(1, "AAA", passed("a@1.0.0", "70"), failed("b@1.0.0"))),
+            10,
+            Map.of(),
+            APPROVED);
     assertThat(result.shortlist().get(0).evaluations()).hasSize(2);
     assertThat(result.shortlist().get(0).evaluations())
         .extracting(StrategyEvaluation::status)
@@ -140,8 +148,27 @@ class SelectionTest {
   }
 
   @Test
+  void aStrategyNotYetApprovedNeverReachesTheShortlist() {
+    var result =
+        Selection.rank(
+            List.of(share(1, "AAA", passed("momentum-breakout@1.0.0", "90"))),
+            10,
+            Map.of(),
+            Set.of());
+    assertThat(result.shortlist()).isEmpty();
+    assertThat(result.passing()).isZero();
+    var approved =
+        Selection.rank(
+            List.of(share(1, "AAA", passed("momentum-breakout@1.0.0", "90"))),
+            10,
+            Map.of(),
+            Set.of("momentum-breakout"));
+    assertThat(approved.shortlist()).hasSize(1);
+  }
+
+  @Test
   void skippedSharesAreReportedInOrder() {
-    var result = Selection.rank(List.of(), 10, Map.of("STALE", 4, "ILLIQUID", 2));
+    var result = Selection.rank(List.of(), 10, Map.of("STALE", 4, "ILLIQUID", 2), APPROVED);
     assertThat(result.skipped()).containsExactly(Map.entry("ILLIQUID", 2), Map.entry("STALE", 4));
     assertThat(result.evaluated()).isZero();
     assertThat(result.shortlist()).isEmpty();
