@@ -7,6 +7,8 @@ import { getJson } from "./client";
 import {
   Candles,
   DecideOutcomes,
+  CalendarCoverage,
+  Freshness,
   Health,
   IngestionResult,
   JobRuns,
@@ -38,6 +40,8 @@ export const keys = {
   candles: (symbol: string, from: string, to: string) => ["candles", symbol, from, to] as const,
   screens: ["screener", "screens"] as const,
   shortlist: (screen: string) => ["screener", "run", screen] as const,
+  freshness: ["marketdata", "freshness"] as const,
+  coverage: ["calendar", "coverage"] as const,
   portfolio: (p: PortfolioParams) => ["backtest", "portfolio", p] as const,
   sweep: (p: SweepParams) => ["backtest", "sweep", p] as const,
   paper: ["paper"] as const,
@@ -339,5 +343,25 @@ export function useDecideMany() {
     },
     retry: false,
     onSettled: () => qc.invalidateQueries({ queryKey: keys.paper }),
+  });
+}
+
+/** Data freshness in trading sessions (ADR 0026). Refreshed every minute; it changes only at EOD. */
+export function useFreshness() {
+  return useQuery({
+    queryKey: keys.freshness,
+    queryFn: ({ signal }) => getJson("/api/v1/marketdata/freshness", Freshness, { signal }),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+}
+
+/** What the trading calendar covers, and the next and last sessions (ADR 0026). */
+export function useCalendarCoverage() {
+  return useQuery({
+    queryKey: keys.coverage,
+    queryFn: ({ signal }) => getJson("/api/v1/calendar/coverage", CalendarCoverage, { signal }),
+    staleTime: 60 * 60_000,
+    retry: false,
   });
 }

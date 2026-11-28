@@ -390,3 +390,59 @@ export const PaperTrade = z.object({
 });
 export type PaperTrade = z.infer<typeof PaperTrade>;
 export const PaperTrades = z.array(PaperTrade);
+
+/** com.auratrade.marketdata.DataFreshnessService.Lag: latestSession and sessionsBehind are null when unknown. */
+export const FreshnessLag = z.object({
+  symbol: z.string(),
+  latestSession: isoDate.nullable(),
+  sessionsBehind: z.number().int().nullable(),
+});
+export type FreshnessLag = z.infer<typeof FreshnessLag>;
+
+/** com.auratrade.marketdata.DataFreshnessService.Freshness (GET /api/v1/marketdata/freshness) */
+export const Freshness = z.object({
+  asOf: instant,
+  expectedSession: isoDate.nullable(),
+  eodCutoff: z.string(),
+  source: z.string(),
+  latestSession: isoDate.nullable(),
+  sessionsBehind: z.number().int().nullable(),
+  shares: z.object({
+    total: z.number().int(),
+    current: z.number().int(),
+    behind: z.record(z.string(), z.number().int()),
+    noData: z.number().int(),
+    mostBehind: z.array(FreshnessLag),
+  }),
+  benchmarks: z.array(FreshnessLag),
+  otherSources: z.array(z.object({ source: z.string(), latestSession: isoDate.nullable() })),
+});
+export type Freshness = z.infer<typeof Freshness>;
+
+/** com.auratrade.marketdata.TradingCalendar.NamedDay */
+const NamedDay = z.object({ date: isoDate, name: z.string() });
+
+/** com.auratrade.marketdata.CalendarCoverage (GET /api/v1/calendar/coverage) */
+export const CalendarCoverage = z.object({
+  exchange: z.string(),
+  timezone: z.string(),
+  coveredYears: z.array(z.number().int()),
+  firstDate: isoDate.nullable(),
+  lastDate: isoDate.nullable(),
+  today: isoDate,
+  todayCovered: z.boolean(),
+  todayIsTradingDay: z.boolean().nullable(),
+  lastClosedSession: isoDate.nullable(),
+  nextSession: isoDate.nullable(),
+  nextYearCovered: z.boolean(),
+  coverageWarning: z.string().nullable(),
+  years: z.array(
+    z.object({
+      year: z.number().int(),
+      tradingDays: z.number().int(),
+      holidays: z.array(NamedDay),
+      specialSessions: z.array(NamedDay),
+    }),
+  ),
+});
+export type CalendarCoverage = z.infer<typeof CalendarCoverage>;
