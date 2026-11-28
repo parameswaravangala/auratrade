@@ -73,6 +73,10 @@ function Summary({ data }: { data: SelectionView }) {
         <dd className="m-0 num text-tx" aria-label="passing">
           {data.passing}
         </dd>
+        <dt className="text-tx3">Market regime (NIFTY 50)</dt>
+        <dd className="m-0 text-tx" aria-label="market regime">
+          {data.regime ? `${data.regime.regime.toLowerCase()} · ${data.regime.evidence}` : "not available"}
+        </dd>
         <dt className="text-tx3">Scoring profile</dt>
         <dd className="m-0 text-tx" aria-label="scoring profile">
           {data.scoringProfile.name} · {data.scoringProfile.policy.replace("_", " ").toLowerCase()} ·{" "}

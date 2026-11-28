@@ -489,6 +489,9 @@ export const SelectionView = z.object({
   asOf: isoDate,
   source: z.string(),
   approvedStrategies: z.array(z.string()),
+  regime: z
+    .object({ regime: z.enum(["BULLISH", "SIDEWAYS", "BEARISH"]), score: z.number(), evidence: z.string() })
+    .nullish(),
   scoringProfile: z.object({
     id: z.string(),
     name: z.string(),
