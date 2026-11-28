@@ -6,12 +6,24 @@ import {
   Cpu,
   FileText,
   LineChart,
+  ListOrdered,
+  ShieldCheck,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
 export type NavItem = {
-  to: "/" | "/dossier" | "/research" | "/playbooks" | "/approvals" | "/portfolio" | "/agents" | "/calendar";
+  to:
+    | "/"
+    | "/dossier"
+    | "/research"
+    | "/playbooks"
+    | "/approvals"
+    | "/portfolio"
+    | "/agents"
+    | "/calendar"
+    | "/scanner"
+    | "/gates";
   label: string;
   subtitle: string;
   icon: LucideIcon;
@@ -50,6 +62,20 @@ export const NAV: NavItem[] = [
     subtitle: "tiers, tokens, traces, evals",
     icon: Cpu,
     live: false,
+  },
+  {
+    to: "/scanner",
+    label: "Stock scanner",
+    subtitle: "shortlist from approved strategies",
+    icon: ListOrdered,
+    live: true,
+  },
+  {
+    to: "/gates",
+    label: "Strategy gate",
+    subtitle: "pre-registered pass checks",
+    icon: ShieldCheck,
+    live: true,
   },
   {
     to: "/calendar",

@@ -10,6 +10,8 @@ import { Shell } from "@/components/Shell";
 import { ErrorState } from "@/components/States";
 import { About } from "@/features/about/About";
 import { DataCalendar } from "@/features/calendar/DataCalendar";
+import { StockScanner } from "@/features/scanner/StockScanner";
+import { StrategyGate } from "@/features/gates/StrategyGate";
 import { CommandCenter } from "@/features/command-center/CommandCenter";
 import { ComingSoon } from "@/features/coming/ComingSoon";
 import { Dossier } from "@/features/dossier/Dossier";
@@ -75,6 +77,13 @@ const portfolioRoute = createRoute({
   component: PaperPortfolio,
 });
 
+const scannerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/scanner",
+  component: StockScanner,
+});
+const gatesRoute = createRoute({ getParentRoute: () => rootRoute, path: "/gates", component: StrategyGate });
+
 const calendarRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/calendar",
@@ -95,6 +104,8 @@ const routeTree = rootRoute.addChildren([
   portfolioRoute,
   coming("/agents"),
   calendarRoute,
+  scannerRoute,
+  gatesRoute,
   aboutRoute,
 ]);
 

@@ -446,3 +446,93 @@ export const CalendarCoverage = z.object({
   ),
 });
 export type CalendarCoverage = z.infer<typeof CalendarCoverage>;
+
+/** com.auratrade.selection.Selection.Result as returned by GET /dev/selection */
+const SelectionCondition = z.object({
+  id: z.string(),
+  description: z.string(),
+  required: z.boolean(),
+  outcome: z.enum(["PASS", "FAIL", "UNKNOWN"]),
+  value: z.number().nullable(),
+  threshold: z.string(),
+});
+const SelectionTarget = z.object({ rMultiple: z.number(), fraction: z.number(), price: z.number() });
+const SelectionPlan = z.object({
+  entryType: z.enum(["BUY_STOP", "NEXT_OPEN"]),
+  trigger: z.number(),
+  maxPrice: z.number(),
+  validSessions: z.number().int(),
+  stop: z.number(),
+  stopReason: z.string(),
+  riskPerShare: z.number(),
+  targets: z.array(SelectionTarget),
+  maxHoldSessions: z.number().int(),
+});
+const SelectionEvaluation = z.object({
+  strategy: z.string(),
+  status: z.enum(["PASSED", "PARTIAL", "FAILED", "NOT_EVALUATED"]),
+  score: z.number(),
+  explanation: z.string(),
+  conditions: z.array(SelectionCondition),
+  plan: SelectionPlan.nullable(),
+});
+const SelectionCandidate = z.object({
+  instrumentId: z.number(),
+  symbol: z.string(),
+  name: z.string(),
+  bestScore: z.number(),
+  combinedScore: z.number(),
+  passedStrategies: z.array(z.string()),
+  evaluations: z.array(SelectionEvaluation),
+});
+export const SelectionView = z.object({
+  asOf: isoDate,
+  source: z.string(),
+  approvedStrategies: z.array(z.string()),
+  scoringProfile: z.object({
+    id: z.string(),
+    name: z.string(),
+    policy: z.enum(["STRICT", "AUTO_NORMALIZED"]),
+    weights: z.record(z.string(), z.number()),
+  }),
+  evaluated: z.number().int(),
+  passing: z.number().int(),
+  skipped: z.record(z.string(), z.number().int()),
+  shortlist: z.array(SelectionCandidate),
+  almostQualified: z.array(SelectionCandidate),
+});
+export type SelectionView = z.infer<typeof SelectionView>;
+export type SelectionCandidate = z.infer<typeof SelectionCandidate>;
+export type SelectionEvaluation = z.infer<typeof SelectionEvaluation>;
+
+/** GateController View (GET /dev/strategies/{id}/gate) */
+const GateMetrics = z.object({
+  trades: z.number().int(),
+  winRate: z.number(),
+  expectancy: z.number(),
+  profitFactor: z.number().nullable(),
+  totalNet: z.number(),
+});
+export const GateView = z.object({
+  strategy: z.string(),
+  passed: z.boolean(),
+  from: isoDate,
+  oosStart: isoDate,
+  to: isoDate,
+  source: z.string(),
+  benchmark: z.string(),
+  settings: z.number().int(),
+  candidateShares: z.number().int(),
+  seconds: z.number(),
+  chosenSetting: z.string(),
+  checks: z.array(
+    z.object({ name: z.string(), passed: z.boolean(), value: z.string(), threshold: z.string() }),
+  ),
+  outOfSample: GateMetrics,
+  walkForward: GateMetrics,
+  settingsBeatingNifty: z.number().int(),
+  settingCount: z.number().int(),
+  defaultMaxDrawdown: z.number(),
+  caveats: z.array(z.string()),
+});
+export type GateView = z.infer<typeof GateView>;
